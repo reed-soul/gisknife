@@ -1,0 +1,39 @@
+{
+  "name": "@gisknife/a2ui-catalog",
+  "version": "0.1.0",
+  "description": "A2UI 1.0 GIS Component Catalog, AG-UI event stream bridge, and Vercel UI SDK (@ui-sdk/core) behavior adapters.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ag-ui/core": "^1.0.5",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@ui-sdk/core": "^0.1.0-beta.0"
+  },
+  "peerDependenciesMeta": {
+    "@ui-sdk/core": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3"
+  }
+}

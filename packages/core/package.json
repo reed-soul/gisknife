@@ -1,0 +1,44 @@
+{
+  "name": "@gisknife/core",
+  "version": "0.1.0",
+  "description": "Pure TypeScript GIS engine — CRS (EPSG + CGCS2000/GCJ-02/BD-09 + sniffer), multi-source boundary & OSM fetcher, format conversion, geometry QA, Turf spatial ops, and HTML map preview.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "data"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@tmcw/togeojson": "^7.1.4",
+    "@turf/turf": "^7.4.0",
+    "@types/geojson": "^7946.0.16",
+    "@xmldom/xmldom": "^0.9.12",
+    "papaparse": "^5.7.1",
+    "proj4": "^2.23.0",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "wellknown": "^0.5.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/papaparse": "^5.5.2",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-server": "^3.0.4",
+    "@types/wellknown": "^0.5.8",
+    "typescript": "^5.9.3"
+  }
+}

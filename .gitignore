@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Python virtualenvs & caches
+python/**/.venv/
+python/**/__pycache__/
+python/**/.pytest_cache/
+*.pyc
+*.egg-info/
+
+# Runtime / test / user outputs
+.cache/
+coverage/
+tmp/
+*.log
+.DS_Store
+.env
+.env.local

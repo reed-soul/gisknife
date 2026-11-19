@@ -1,0 +1,30 @@
+{
+  "name": "@gisknife/mcp-apps",
+  "version": "0.1.0",
+  "description": "MCP Apps (io.modelcontextprotocol/ui) sandboxed ui:// interactive HTML widgets for GIS area picking, layer preview, and CRS disambiguation.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@types/geojson": "^7946.0.16"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gisknife-engine"
+version = "0.1.0"
+description = "Python heavy compute engine for gisknife (DuckDB Spatial + httpfs, GeoPandas, Pyogrio, PyProj, Shapely, optional Rasterio/PySAL)."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "duckdb>=1.2.0",
+  "geopandas>=1.0.0",
+  "pyarrow>=18.0.0",
+  "pyogrio>=0.10.0",
+  "pyproj>=3.7.0",
+  "shapely>=2.0.0",
+]
+
+[project.optional-dependencies]
+raster = ["rasterio>=1.4.0"]
+stats = ["libpysal>=4.12.0"]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+gisknife-engine = "gisknife_engine.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gisknife_engine"]
