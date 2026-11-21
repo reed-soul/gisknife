@@ -1,0 +1,43 @@
+name: Publish Python engine
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to PyPI after both release gates pass
+        type: boolean
+        default: false
+permissions: {}
+jobs:
+  candidate:
+    if: github.repository == 'reed-soul/gisknife' && github.ref == 'refs/heads/master'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-gates.yml
+
+  publish:
+    if: inputs.publish
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency: publish-python
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: candidate-ubuntu-latest
+          path: candidate
+      - name: Verify and select Python distributions
+        working-directory: candidate
+        shell: bash
+        run: |
+          sha256sum --strict --check SHA256SUMS
+          wheels=(gisknife_engine-*.whl)
+          sources=(gisknife_engine-*.tar.gz)
+          [[ ${#wheels[@]} -eq 1 && ${#sources[@]} -eq 1 ]]
+          mkdir ../dist
+          cp -- "${wheels[0]}" "${sources[0]}" ../dist/
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
+        with:
+          packages-dir: dist/
