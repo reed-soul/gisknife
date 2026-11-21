@@ -1,0 +1,55 @@
+{
+  "description": "Recorded GIS outputs and fixtures, not publicly distributed. Paths relative to tmp/acceptance/. Hashes identify this run only; external sources change.",
+  "files": [
+    {
+      "name": "dc.gpkg",
+      "bytes": 212992,
+      "sha256": "0dbd6bd5f286499acf1cfb19414f8df1b95e50cb46c743b45e3a6b65ced8a2e0"
+    },
+    {
+      "name": "foshan.geojson",
+      "bytes": 49046,
+      "sha256": "9757f33e1b203ad0fefa86aa5d4234017b0a23ec3fb4c7057624a0867a7f0ff6"
+    },
+    {
+      "name": "streets.geojson",
+      "bytes": 121144,
+      "sha256": "ffc7dab7963c39abd614cdd114a7f61fff3e10c56cd805e156c0aeaf5ccd6b5e"
+    },
+    {
+      "name": "roads.geojson",
+      "bytes": 29606,
+      "sha256": "be9c641d68cfd986d359ebecb4a6ebedf1620b25b12f378efac5b2f3fb4917d5"
+    },
+    {
+      "name": "roads.parquet",
+      "bytes": 23203,
+      "sha256": "a7a29c9a1ea32172dd59238e836c01ac594401cc84c50e262b891a009b50828c"
+    },
+    {
+      "name": "out-4547.csv",
+      "bytes": 77,
+      "sha256": "1fe2e8240e4368bcf648427c4eb2c19d14ec0151ca58ce76cc9a51b0377540d2"
+    },
+    {
+      "name": "out-4526.csv",
+      "bytes": 79,
+      "sha256": "fd0aeb005cc1913290c981754e52e708ebfb21b4d04905a71d6d61cbf204ce11"
+    },
+    {
+      "name": "areas.geojson",
+      "bytes": 136211,
+      "sha256": "29f4cca2cf91d9aeb09be2c628b648f593a9d8946268312d11b07778a61eb053"
+    },
+    {
+      "name": "preview.html",
+      "bytes": 123101,
+      "sha256": "8ecd24b2c884656ad4560a618335167ca2234f811cac66fe4eafcb55cb6e2171"
+    },
+    {
+      "name": "fixture.tif",
+      "bytes": 370,
+      "sha256": "b51b120f32eb48f710f391dda844c06ce0071dd060b72335492f30c8a890cd7b"
+    }
+  ]
+}

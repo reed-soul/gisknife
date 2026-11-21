@@ -33,6 +33,7 @@
     }
   },
   "devDependencies": {
+    "@a2ui/web_core": "0.15.0",
     "@types/node": "^22.15.0",
     "typescript": "^5.9.3"
   }

@@ -17,7 +17,6 @@ export function resolvePythonEngineDir(): string | null {
   const candidates = [
     fileURLToPath(new URL('../../../python/gisknife-engine', import.meta.url)),
     fileURLToPath(new URL('../../../../python/gisknife-engine', import.meta.url)),
-    path.resolve(process.cwd(), 'python/gisknife-engine'),
   ]
   for (const dir of candidates) {
     if (fs.existsSync(path.join(dir, 'pyproject.toml'))) {
@@ -48,9 +47,10 @@ export async function runPythonEngine(
   }
 
   const engineDir = resolvePythonEngineDir()
+  const raster = op === 'raster_inspect'
   const args = engineDir
-    ? ['run', '--quiet', '--directory', engineDir, 'gisknife-engine', '--rpc']
-    : ['tool', 'run', '--quiet', 'gisknife-engine', '--rpc']
+    ? ['run', '--quiet', '--project', engineDir, ...(raster ? ['--extra', 'raster'] : []), 'gisknife-engine', '--rpc']
+    : ['tool', 'run', '--quiet', '--from', `gisknife-engine${raster ? '[raster]' : ''}==0.1.0`, 'gisknife-engine', '--rpc']
 
   const timeoutMs = options.timeoutMs ?? 120_000
 
@@ -72,11 +72,11 @@ export async function runPythonEngine(
       }
     }, timeoutMs)
 
-    child.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString('utf8')
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk
     })
-    child.stderr.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString('utf8')
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk
     })
 
     child.on('error', (err) => {
@@ -131,7 +131,7 @@ export async function probePythonEngine(): Promise<PythonEngineProbe> {
     }
   }
   try {
-    const caps = await runPythonEngine('capabilities', {}, { timeoutMs: 30_000 })
+    const caps = await runPythonEngine('capabilities', {}, { timeoutMs: 180_000 })
     return {
       uvInstalled: true,
       uvVersion: uv.version,

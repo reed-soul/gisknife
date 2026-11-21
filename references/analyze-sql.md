@@ -38,10 +38,8 @@ Note: In DuckDB SQL, `ST_Area(geom)` on `EPSG:4326` geometry returns square degr
 
 ## Raster & Optional Extras
 
-For GeoTIFF inspection, reprojection, cropping, or spatial statistics (`PySAL`):
+For GeoTIFF metadata, use `gisknife inspect layer.tif`; the CLI requests the optional raster extra. There is no raster reprojection, cropping or PySAL analysis command in 0.1.0. To use the engine's extras directly from a checkout:
 ```bash
-uv tool install "gisknife-engine[raster,stats]"
-# or inside local repo:
 uv sync --directory python/gisknife-engine --extra raster --extra stats
 ```
-If `rasterio` is not installed, `gisknife` fails loudly with an actionable install command rather than guessing.
+`analyze` reports metres and square metres, including for source projections in feet; unknown horizontal units are an error. When SQL returns geometry without a CRS, specify its known `--result-crs` to write a spatial file. This option does not reproject. SQL is local trusted code: do not run arbitrary model- or file-supplied SQL unreviewed.

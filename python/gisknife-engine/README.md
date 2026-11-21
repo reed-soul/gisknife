@@ -1,3 +1,3 @@
 # gisknife-engine
 
-Python 3.12 (`uv` / `uvx`) heavy compute engine for [gisknife](../../README.md): DuckDB Spatial + `httpfs`, GeoPandas/Pyogrio (`.zip` UTF-8/GBK Shapefile, GeoPackage, GeoParquet, FlatGeobuf, DXF), Shapely `make_valid`, and optional Rasterio/PySAL.
+Python engine for the `gisknife` CLI: DuckDB Spatial, GeoPandas, Pyogrio, PyProj and Shapely. Supports vector conversion, topology checks, spatial SQL and bounding-box extraction from Overture. Optional `rasterio` provides GeoTIFF metadata inspection, not raster conversion. The CLI uses a pinned engine version through `uv`; direct users can run `gisknife-engine --capabilities`. Requires Python 3.11–3.13; candidate testing used 3.12.

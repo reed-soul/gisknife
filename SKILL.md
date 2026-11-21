@@ -2,13 +2,13 @@
 name: gisknife
 description: >-
   AI-native GIS Swiss Army Knife (CLI + MCP + Python uvx). Use whenever the user
-  asks to fetch administrative boundaries (global, US, China province/city/district/street),
-  download OSM or Overture data (by place name, bbox, or interactive map pick),
-  convert coordinates or batch-rewrite CSV/GeoJSON files (WGS84, EPSG, UTM,
+  asks to convert coordinates or batch-rewrite CSV/GeoJSON files (WGS84, EPSG, UTM,
   CGCS2000 EPSG:4547/4526, GCJ-02, BD-09), convert GIS formats (GeoJSON, CSV,
   KML, GPX, WKT, TopoJSON, Shapefile, GeoPackage, GeoParquet, FlatGeobuf, DXF,
-  GeoTIFF), run spatial analysis or DuckDB Spatial SQL, inspect/QA topology, or
-  generate visual HTML map previews.
+  inspect GeoTIFF metadata), run spatial analysis or DuckDB Spatial SQL, inspect/QA topology, or
+  generate visual HTML map previews. Also use for Beta online fetching of administrative
+  boundaries (global, US, China province/city/district/street), OSM or Overture data
+  (by place name, bbox, or interactive map pick).
 license: MIT
 metadata:
   author: reed-soul
@@ -18,15 +18,17 @@ metadata:
 
 # gisknife — AI-Native GIS Swiss Army Knife
 
-One root skill + zero-config dual-engine CLI (`gisknife` / `gk`) + optional MCP server (`gisknife mcp`).
-Fast operations run directly in Node/TS; heavy formats (SHP/GPKG/GeoParquet/FGB/DXF/GeoTIFF), Overture S3 extraction, and Spatial SQL transparently dispatch to Python (`uvx gisknife-engine`).
+One root skill, a separately installed CLI (`gisknife` / `gk`), and an optional MCP server (`gisknife mcp`).
+Node/TS handles light operations. Heavy formats (SHP/GPKG/GeoParquet/FGB/DXF), GeoTIFF metadata inspection, Spatial SQL, and Overture extraction need `uv` for the Python engine. Initial setup can require network access.
+
+**Online data fetching is Beta.** Do not promise provider availability, coverage, or reuse rights. If a download fails, report it and offer to process a user-provided file. Do not pass off a stale output file or a different administrative level as the requested result.
 
 ## Mandatory Spatial Guardrails (Read Before Running Anything)
 
 1. **Compact-Envelope Rule (Never Blow Context Window)**:
-   `gisknife` always writes full spatial outputs to disk and returns a compact JSON summary (`path`, `crs`, `feature_count`, `bbox`, `geometry_types`, `sample_properties`, `warnings`). **Never** pass `--stdout` on multi-feature files or dump raw GeoJSON/CSV into chat.
+   Use file outputs and return the compact JSON summary (`outputPath`, `crs`, `featureCount`, `bbox`, `geometryTypes`, `sampleProperties`, `warnings`). **Never** pass `--stdout` on multi-feature files or dump raw GeoJSON/CSV into chat.
 2. **Project Before Measuring or Buffering**:
-   Never run metric buffers, area, or length calculations directly in `EPSG:4326` degrees without geodesic math or automatic equal-area/UTM projection. Use `gisknife analyze` or `gisknife sql` (which enforce this automatically) and read `references/analyze-sql.md`.
+   Use `gisknife analyze` for metric work; SQL executes your expressions as written. Choose geodesic math or an appropriate metric projection yourself in SQL. `--result-crs` labels already transformed coordinates; it does not transform them.
 3. **CGCS2000 & China CRS Sniffing (`EPSG:4547` vs `4526`, Axis Swap, GCJ-02)**:
    Always inspect `warnings` from `gisknife crs convert`. If an input declares `EPSG:4547` (no zone prefix, ~500,000 Easting) but contains 8-digit Easting (`385xxxxx` -> `EPSG:4526`), or swaps surveying X=North / Y=East, **stop and confirm** with the user (or pass `--auto-fix` only when explicitly confirmed). Always state whether outputs are `WGS84` or `GCJ02`/`BD09`.
 4. **Disambiguate Before Downloading**:
@@ -41,9 +43,9 @@ Load ONLY the reference file needed for the current task:
 | User Intent / Domain | CLI Entry | Load Reference |
 |---|---|---|
 | Coordinate string / CSV batch rewrite / EPSG search / `4547`↔`84` / GCJ-02 | `gisknife crs` | [references/crs.md](references/crs.md) |
-| Boundaries (global, US, China city/street) / Silicon Valley OSM / DEM | `gisknife fetch` | [references/fetch.md](references/fetch.md) |
+| Online boundaries (global, US, China city/street), OSM, or Overture (Beta) | `gisknife fetch` | [references/fetch.md](references/fetch.md) |
 | Format convert (SHP/GPKG/Parquet/KML/DXF) / inspect / topology QA & fix | `gisknife convert`, `inspect`, `qa` | [references/convert-qa.md](references/convert-qa.md) |
-| Buffer, clip, union, dissolve, Spatial SQL (DuckDB), Overture, raster | `gisknife analyze`, `sql` | [references/analyze-sql.md](references/analyze-sql.md) |
+| Buffer, clip, union, dissolve, Spatial SQL (DuckDB), raster metadata | `gisknife analyze`, `sql`, `inspect` | [references/analyze-sql.md](references/analyze-sql.md) |
 | Interactive map box pick, local file drop, MCP Apps, A2UI, WebMCP handoff | `gisknife pick`, `preview`, `mcp` | [references/hitl-ui.md](references/hitl-ui.md) |
 | End-to-end recipes & `gis.taoliapp.com` workbench handoff (`#wf=`) | Multi-step pipelines | [references/recipes.md](references/recipes.md) |
 
@@ -57,7 +59,7 @@ gisknife doctor
 gisknife crs convert "500000,2500000" --from EPSG:4547 --to WGS84
 gisknife crs convert --csv input.csv -o output_wgs84.csv --from EPSG:4547 --to WGS84
 
-# 3. Fetch boundaries & OSM (always writes file + prints compact JSON summary)
+# 3. Fetch boundaries and OSM (Beta; requires working online providers)
 gisknife fetch boundary "Washington, D.C." -o ./dc.geojson
 gisknife fetch boundary "佛山" -o ./foshan.geojson
 gisknife fetch boundary "深圳南山区" --level street -o ./nanshan_streets.geojson
@@ -66,12 +68,12 @@ gisknife fetch osm --place "Silicon Valley" --layers roads,buildings -o ./sv_osm
 # 4. Interactive area selection when region is vague
 gisknife pick -o ./area.geojson
 
-# 5. Convert, QA, and visually verify
-gisknife convert ./dc.geojson -o ./dc.gpkg
-gisknife qa ./nanshan_streets.geojson --fix -o ./nanshan_clean.geojson
-gisknife preview ./nanshan_clean.geojson -o ./nanshan_preview.html
+# 5. Convert, QA, and visually verify a local layer
+gisknife convert ./parcels.geojson -o ./parcels.gpkg
+gisknife qa ./parcels.geojson --fix -o ./parcels_clean.geojson
+gisknife preview ./parcels_clean.geojson -o ./parcels_preview.html
 ```
 
 ## Runtime Invocation Fallback
 
-If `gisknife` is not installed globally, invoke via `npx gisknife ...` (or `node <skill-dir>/packages/cli/dist/index.js ...` when running directly from a cloned skill directory). If `uv` is missing, lightweight CRS, Turf ops, GeoJSON/CSV/KML/GPX/WKT/TopoJSON conversion, boundary/OSM fetch, picker, and HTML preview still work purely in Node/TS.
+Before public release use `node packages/cli/dist/index.js` from a built checkout or the verified candidate tarballs. Do not fetch an unverified package by name. The Skill installer does not install Node, CLI or `uv`. Without `uv`, light operations still work; heavy formats, SQL and Overture do not. Map previews embed the data but load MapLibre and tiles over the network. See `references/hitl-ui.md` for workbench handoff.

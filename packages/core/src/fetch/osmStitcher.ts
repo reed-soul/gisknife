@@ -1,4 +1,5 @@
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, Position } from 'geojson'
+import { area, booleanPointInPolygon, polygon } from '@turf/turf'
 
 export interface OverpassLatLon {
   lat: number
@@ -87,14 +88,9 @@ export function stitchWaySegmentsToRings(segments: Position[][]): Position[][] {
       }
     }
 
-    if (current.length >= 3) {
-      if (!coordsEqual(current[0], current[current.length - 1])) {
-        current.push([...current[0]])
-      }
-      if (current.length >= 4) {
-        rings.push(current)
-      }
-    }
+    if (current.length < 4 || !coordsEqual(current[0], current[current.length - 1])) throw new Error('Incomplete OSM relation ring')
+    current[current.length - 1] = [...current[0]]
+    rings.push(current)
   }
 
   return rings
@@ -186,12 +182,12 @@ export function overpassToGeoJson(
       continue
     }
 
-    if (el.type === 'relation' && el.members) {
+    if (el.type === 'relation' && el.members && (el.tags?.type === 'multipolygon' || el.tags?.boundary || el.tags?.type === 'boundary')) {
       const outerSegs: Position[][] = []
       const innerSegs: Position[][] = []
 
       for (const m of el.members) {
-        if (m.type !== 'way') continue
+        if (m.type !== 'way' || !['', 'outer', 'inner'].includes(m.role)) continue
         const seg =
           m.geometry && m.geometry.length > 0
             ? toPositions(m.geometry)
@@ -209,17 +205,14 @@ export function overpassToGeoJson(
 
       if (outerRings.length === 0) continue
 
-      const geometry: Geometry =
-        outerRings.length === 1 && innerRings.length === 0
-          ? { type: 'Polygon', coordinates: [outerRings[0]] }
-          : outerRings.length === 1
-            ? { type: 'Polygon', coordinates: [outerRings[0], ...innerRings] }
-            : {
-                type: 'MultiPolygon',
-                coordinates: outerRings.map((ring, idx) =>
-                  idx === 0 && innerRings.length > 0 ? [ring, ...innerRings] : [ring],
-                ),
-              }
+      const shells = outerRings.map(ring => [ring])
+      for (const hole of innerRings) {
+        const owner = shells.filter(shell => booleanPointInPolygon(hole[0], polygon([shell[0]])))
+          .sort((left, right) => area(polygon([left[0]])) - area(polygon([right[0]])))[0]
+        if (!owner) throw new Error('OSM relation contains a hole outside its outer rings')
+        owner.push(hole)
+      }
+      const geometry: Geometry = shells.length === 1 ? { type: 'Polygon', coordinates: shells[0] } : { type: 'MultiPolygon', coordinates: shells }
 
       features.push({
         type: 'Feature',

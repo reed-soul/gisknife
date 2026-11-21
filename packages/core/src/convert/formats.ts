@@ -4,6 +4,7 @@ import { gpx as gpxToGeoJson, kml as kmlToGeoJson } from '@tmcw/togeojson'
 import { DOMParser } from '@xmldom/xmldom'
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, Position } from 'geojson'
 import Papa from 'papaparse'
+import { assertDistinctOutput, coordinateNumber } from '../files.js'
 import * as topojsonClient from 'topojson-client'
 import * as topojsonServer from 'topojson-server'
 import { parse as parseWkt, stringify as stringifyWkt } from 'wellknown'
@@ -117,11 +118,13 @@ export function geoJsonToGpx(fc: FeatureCollection<Geometry, GeoJsonProperties>)
 
   for (let i = 0; i < fc.features.length; i += 1) {
     const f = fc.features[i]
-    if (!f.geometry) continue
+    if (!f.geometry) throw new Error('GPX cannot represent null geometry')
     const name = escapeXml(f.properties?.name ?? f.properties?.NAME ?? `Feature ${i + 1}`)
-    if (f.geometry.type === 'Point') {
-      const [lon, lat] = f.geometry.coordinates
-      wpts.push(`<wpt lat="${lat}" lon="${lon}"><name>${name}</name></wpt>`)
+    if (f.geometry.type === 'Point' || f.geometry.type === 'MultiPoint') {
+      const points = f.geometry.type === 'Point' ? [f.geometry.coordinates] : f.geometry.coordinates
+      for (const [lon, lat, ele] of points) {
+        wpts.push(`<wpt lat="${lat}" lon="${lon}">${ele === undefined ? '' : `<ele>${ele}</ele>`}<name>${name}</name></wpt>`)
+      }
     } else if (f.geometry.type === 'LineString') {
       const pts = f.geometry.coordinates
         .map(([lon, lat]) => `<trkpt lat="${lat}" lon="${lon}"/>`)
@@ -135,11 +138,8 @@ export function geoJsonToGpx(fc: FeatureCollection<Geometry, GeoJsonProperties>)
         )
         .join('')
       trks.push(`<trk><name>${name}</name>${segs}</trk>`)
-    } else if (f.geometry.type === 'Polygon' && f.geometry.coordinates[0]) {
-      const pts = f.geometry.coordinates[0]
-        .map(([lon, lat]) => `<trkpt lat="${lat}" lon="${lon}"/>`)
-        .join('')
-      trks.push(`<trk><name>${name}</name><trkseg>${pts}</trkseg></trk>`)
+    } else {
+      throw new Error(`GPX cannot represent ${f.geometry.type} without changing its geometry`)
     }
   }
 
@@ -156,10 +156,10 @@ export function csvTextToGeoJson(csvText: string): FeatureCollection<Geometry, G
 
   const wktField = lower.get('wkt') ?? lower.get('geometry') ?? lower.get('geom')
   const lonPairs: Array<[string, string]> = [
+    ['wgs84_lon', 'wgs84_lat'],
     ['lon', 'lat'],
     ['lng', 'lat'],
     ['longitude', 'latitude'],
-    ['wgs84_lon', 'wgs84_lat'],
     ['x', 'y'],
     ['经度', '纬度'],
   ]
@@ -186,8 +186,8 @@ export function csvTextToGeoJson(csvText: string): FeatureCollection<Geometry, G
     if (wktField && row[wktField]) {
       geometry = parseWkt(row[wktField]) as Geometry | null
     } else if (xCol && yCol) {
-      const lon = Number(row[xCol])
-      const lat = Number(row[yCol])
+      const lon = coordinateNumber(row[xCol])
+      const lat = coordinateNumber(row[yCol])
       if (Number.isFinite(lon) && Number.isFinite(lat)) {
         geometry = { type: 'Point', coordinates: [lon, lat] }
       }
@@ -297,12 +297,13 @@ export function serializeLightVector(
   }
 }
 
-export function convertLightVectorFile(
+export function convertLightVectorFileDetailed(
   inputPath: string,
   outputPath: string,
   fromFormat?: LightFormat,
   toFormat?: LightFormat,
-): FeatureCollection<Geometry, GeoJsonProperties> {
+): { written: FeatureCollection<Geometry, GeoJsonProperties>; inputFeatureCount: number } {
+  assertDistinctOutput(inputPath, outputPath)
   const srcFmt = fromFormat ?? detectFormatFromPath(inputPath)
   const dstFmt = toFormat ?? detectFormatFromPath(outputPath)
   if (!isLightFormat(srcFmt) || !isLightFormat(dstFmt)) {
@@ -311,8 +312,13 @@ export function convertLightVectorFile(
   const raw = fs.readFileSync(inputPath, 'utf8')
   const fc = parseLightVectorText(raw, srcFmt)
   const out = serializeLightVector(fc, dstFmt)
+  const written = dstFmt === 'geojson' ? fc : parseLightVectorText(out, dstFmt)
   const resolvedOut = path.resolve(outputPath)
   fs.mkdirSync(path.dirname(resolvedOut), { recursive: true })
   fs.writeFileSync(resolvedOut, out, 'utf8')
-  return fc
+  return { written, inputFeatureCount: fc.features.length }
+}
+
+export function convertLightVectorFile(...args: Parameters<typeof convertLightVectorFileDetailed>) {
+  return convertLightVectorFileDetailed(...args).written
 }

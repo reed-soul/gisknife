@@ -46,5 +46,5 @@ gisknife convert survey_wgs84.csv -o survey_wgs84.geojson
 gisknife preview survey_wgs84.geojson -o survey_check.html
 ```
 
-## Recipe 5: Hand Off Complex Print Layout / 3D Globe to `gis.taoliapp.com`
-When the user needs publication-ready cartographic layout (legend/grid/PDF), LiDAR/3D Cesium visualization, or interactive DAG workflow editing without installing desktop software, generate a `gis.taoliapp.com/#wf=` recipe link via `@gisknife/webmcp-bridge` and let the user load their local output file directly in the browser (100% local privacy, zero upload).
+## Recipe 5: Hand off a local-file centroid workflow
+Run `gisknife handoff centroid` (or `bbox`, or `buffer --distance 500`). Open the resulting `/tools/workflow#wf=...` URL on the compatible workbench, select a local GeoJSON file, run, and download. The CLI includes no file path or coordinates in the link. A result is not present until the browser actually runs the workflow. Print layout and 3D rendering are not handoff operators in 0.1.0.

@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import {
   detectFormatFromPath,
+  assertDistinctOutput,
   isLightFormat,
   parseLightVectorText,
   summarizeGeoJson,
@@ -43,6 +44,7 @@ export function registerPreviewCommand(program: Command): void {
         const outHtml =
           opts.output ??
           path.resolve(path.dirname(file), `${path.basename(file, path.extname(file))}_preview.html`)
+        assertDistinctOutput(file, outHtml)
         const written = writePreviewHtmlFile(outHtml, fc, {
           title: opts.title ?? path.basename(file),
           crs: opts.crs,

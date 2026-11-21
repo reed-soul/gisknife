@@ -30,7 +30,19 @@ describe('gisknife CLI', () => {
       'preview',
       'pick',
       'mcp',
+      'handoff',
     ])
+  })
+
+  it('labels online data fetching as Beta in CLI help', () => {
+    const program = buildProgram()
+    const fetchCommand = program.commands.find(command => command.name() === 'fetch')!
+    expect(program.helpInformation()).toContain('Online Fetch (Beta)')
+    expect(fetchCommand.description()).toContain('coverage depend on providers')
+    expect(fetchCommand.commands.map(command => command.name())).toEqual(['boundary', 'osm'])
+    for (const command of fetchCommand.commands) {
+      expect(command.helpInformation()).toContain('Beta; verify coverage')
+    }
   })
 
   it('locates local python/gisknife-engine directory and uv binary', () => {
@@ -43,9 +55,7 @@ describe('gisknife CLI', () => {
 
   it('executes CRS string, CSV batch rewrite, QA, and preview end-to-end via compiled CLI', () => {
     const cliDist = path.resolve(__dirname, '../dist/index.js')
-    if (!fs.existsSync(cliDist)) {
-      return
-    }
+    expect(fs.existsSync(cliDist), 'Build the CLI before running its integration tests').toBe(true)
 
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gk-cli-test-'))
     tempDirs.push(tmp)

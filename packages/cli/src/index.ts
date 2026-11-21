@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { Command } from 'commander'
+import { buildWorkbenchHandoffUrl } from '@gisknife/webmcp-bridge'
 import { registerAnalyzeCommands } from './commands/analyze.js'
 import { registerConvertCommand } from './commands/convert.js'
 import { registerCrsCommand } from './commands/crs.js'
@@ -17,7 +18,7 @@ export function buildProgram(): Command {
   program
     .name('gisknife')
     .description(
-      'The AI-native GIS Swiss Army Knife — CRS, Boundary/OSM Fetch, Format Convert, Spatial SQL, QA, Picker & MCP',
+      'The AI-native GIS Swiss Army Knife — CRS, Format Convert, Spatial SQL, QA, Picker, MCP & Online Fetch (Beta)',
     )
     .version('0.1.0')
 
@@ -30,6 +31,18 @@ export function buildProgram(): Command {
   registerPreviewCommand(program)
   registerPickCommand(program)
   registerMcpCommand(program)
+  program.command('handoff <operation>')
+    .description('Create a local-file workbench recipe link (buffer, centroid or bbox); no data are embedded')
+    .option('--distance <metres>', 'Buffer distance in metres', '500')
+    .action((operation: string, opts: { distance: string }) => {
+      if (!['buffer', 'centroid', 'bbox'].includes(operation)) throw new Error('Choose buffer, centroid or bbox')
+      const metres = Number(opts.distance)
+      if (!Number.isFinite(metres) || metres <= 0) throw new Error('Expected a positive distance in metres')
+      const url = buildWorkbenchHandoffUrl({ version: 1, name: `gisknife: ${operation}`, steps: [{
+        id: 'step-1', operator: `spatial.${operation}`, ...(operation === 'buffer' ? { params: { distanceKm: metres / 1000 } } : {}),
+      }] })
+      console.log(JSON.stringify({ ok: true, url }))
+    })
 
   return program
 }

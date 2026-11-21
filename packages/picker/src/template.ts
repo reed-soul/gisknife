@@ -131,7 +131,7 @@ export function renderPickerHtml(options: PickerTemplateOptions): string {
     });
 
     map.on('click', (e) => {
-      const pt = [Number(e.lngLat.lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))];
+      const pt = [Number(e.lngLat.wrap().lng.toFixed(6)), Number(e.lngLat.lat.toFixed(6))];
       if (mode === 'bbox') {
         if (!firstCorner) {
           firstCorner = pt;
@@ -172,12 +172,12 @@ export function renderPickerHtml(options: PickerTemplateOptions): string {
     };
 
     document.getElementById('modeBbox').onclick = () => {
-      mode = 'bbox'; firstCorner = null; polyPoints = []; finishBtn.style.display = 'none';
+      document.getElementById('clearBtn').click(); mode = 'bbox';
       document.getElementById('modeBbox').classList.add('active');
       document.getElementById('modePoly').classList.remove('active');
     };
     document.getElementById('modePoly').onclick = () => {
-      mode = 'polygon'; firstCorner = null; polyPoints = [];
+      document.getElementById('clearBtn').click(); mode = 'polygon';
       document.getElementById('modePoly').classList.add('active');
       document.getElementById('modeBbox').classList.remove('active');
     };
@@ -194,7 +194,9 @@ export function renderPickerHtml(options: PickerTemplateOptions): string {
     dz.ondragover = (e) => { e.preventDefault(); dz.classList.add('drag'); };
     dz.ondragleave = () => dz.classList.remove('drag');
     const handleFile = async (file) => {
+      if (file.size > 8 * 1024 * 1024) { statusEl.textContent = 'Choose a file under 8 MiB or use the CLI.'; return; }
       const content = await file.text();
+      document.getElementById('clearBtn').click(); mode = 'file';
       uploadedFile = { name: file.name, content };
       statusEl.textContent = 'Loaded local file: ' + file.name;
       if (file.name.endsWith('.json') || file.name.endsWith('.geojson')) {
@@ -213,8 +215,11 @@ export function renderPickerHtml(options: PickerTemplateOptions): string {
 
     async function submitSelection(cancelled) {
       const payload = { cancelled, mode, bbox: selectedBbox, geometry: selectedGeometry, uploadedFile };
-      await fetch('/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      document.body.innerHTML = '<div style="display:flex;height:100vh;align-items:center;justify-content:center;font-family:system-ui;background:#0f172a;color:#e2e8f0;text-align:center;padding:24px;"><div><h2>' + (cancelled ? 'Selection Cancelled' : 'Selection Sent to gisknife') + '</h2><p style="color:#94a3b8;">You may close this browser tab now.</p></div></div>';
+      try {
+        const response = await fetch('/submit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (!response.ok) { statusEl.textContent = 'Selection not accepted. Check the area or choose a smaller file.'; return; }
+        document.body.textContent = (cancelled ? 'Selection cancelled.' : 'Selection sent to gisknife.') + ' You may close this tab.';
+      } catch { statusEl.textContent = 'Picker is no longer available. Restart the command.'; }
     }
     document.getElementById('confirmBtn').onclick = () => submitSelection(false);
     document.getElementById('cancelBtn').onclick = () => submitSelection(true);

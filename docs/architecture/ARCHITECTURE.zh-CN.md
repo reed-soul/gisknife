@@ -66,7 +66,7 @@ flowchart TB
 | `@gisknife/picker` | `packages/picker` | 零常驻进程的一次性 `127.0.0.1:0` 选区服务器：支持地图框选 BBox、画多边形、本地文件拖拽上传，确认后 POST 回 CLI 并自动关闭。 |
 | `@gisknife/mcp-apps` | `packages/mcp-apps` | 遵循 MCP Apps（`io.modelcontextprotocol/ui`）的沙箱 `ui://` 交互微组件（区域框选、视觉 QA 预览、4547/轴序确认面板）。 |
 | `@gisknife/a2ui-catalog` | `packages/a2ui-catalog` | 面向 A2UI 1.0 的 GIS 组件目录 Schema、AG-UI（`@ag-ui/core`）流式事件桥、以及 Vercel UI SDK（`@ui-sdk/core`）无头行为适配器。 |
-| `@gisknife/webmcp-bridge` | `packages/webmcp-bridge` | 与 `gis.taoliapp.com` 对齐的 18+4 个 WebMCP 工具描述符及 `#wf=` 工作台跳转构造器。 |
+| `@gisknife/webmcp-bridge` | `packages/webmcp-bridge` | 工作台原有的 18 个工具、交接页面额外的 5 个工具，以及 `#wf=` 链接构造器。 |
 | `@gisknife/mcp` | `packages/mcp` | Stdio MCP 服务器，串联 `@gisknife/core`、`@gisknife/mcp-apps` 与 `@gisknife/picker`。 |
 | `gisknife` | `packages/cli` | 统一命令行工具（`gisknife` / `gk`）及 Python `uvx` 调度桥（`engineBridge.ts`）。 |
 | `gisknife-engine` | `python/gisknife-engine` | 基于 `uv` / Python 3.12 的重型算力引擎：DuckDB Spatial + `httpfs`、GeoPandas/Pyogrio（自动识别 SHP GBK/UTF-8 编码并打包 `.zip`）、GeoPackage、GeoParquet、FGB、DXF、`make_valid` 及可选 Rasterio/PySAL。 |

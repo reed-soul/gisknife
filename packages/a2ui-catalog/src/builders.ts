@@ -12,52 +12,44 @@ export interface A2UIComponentNode {
 }
 
 export interface A2UISurfaceEnvelope {
-  a2uiVersion: typeof A2UI_PROTOCOL_VERSION
-  surfaceId: string
-  createSurface?: {
+  version: typeof A2UI_PROTOCOL_VERSION
+  createSurface: {
+    surfaceId: string
     catalogId: string
-    rootComponentId: string
+    components: Array<{ id: string; component: GisA2UIComponentName } & Record<string, unknown>>
+    dataModel?: Record<string, unknown>
   }
-  updateComponents?: A2UIComponentNode[]
-  updateDataModel?: Record<string, unknown>
 }
 
 export interface A2UIRpcCall {
-  a2uiVersion: typeof A2UI_PROTOCOL_VERSION
-  surfaceId: string
+  version: typeof A2UI_PROTOCOL_VERSION
   callAgentFunction?: {
-    name: string
-    arguments: Record<string, unknown>
+    surfaceId: string
+    functionCallId: string
+    callFunction: Record<string, unknown>
   }
   callRendererFunction?: {
-    name: string
-    arguments: Record<string, unknown>
+    surfaceId: string
+    functionCallId: string
+    callFunction: Record<string, unknown>
   }
 }
 
 export function createGisSurface<K extends GisA2UIComponentName>(params: {
   surfaceId: string
-  rootComponentId: string
   component: K
   props: unknown
   dataModel?: Record<string, unknown>
 }): A2UISurfaceEnvelope {
   const validated = validateCatalogComponentProps(params.component, params.props)
   return {
-    a2uiVersion: A2UI_PROTOCOL_VERSION,
-    surfaceId: params.surfaceId,
+    version: A2UI_PROTOCOL_VERSION,
     createSurface: {
+      surfaceId: params.surfaceId,
       catalogId: A2UI_CATALOG_ID,
-      rootComponentId: params.rootComponentId,
+      components: [{ ...validated, id: 'root', component: params.component }],
+      ...(params.dataModel ? { dataModel: params.dataModel } : {}),
     },
-    updateComponents: [
-      {
-        id: params.rootComponentId,
-        component: params.component,
-        props: validated as Record<string, unknown>,
-      },
-    ],
-    ...(params.dataModel ? { updateDataModel: params.dataModel } : {}),
   }
 }
 
@@ -67,11 +59,11 @@ export function buildAgentRpcCall(
   args: Record<string, unknown>,
 ): A2UIRpcCall {
   return {
-    a2uiVersion: A2UI_PROTOCOL_VERSION,
-    surfaceId,
+    version: A2UI_PROTOCOL_VERSION,
     callAgentFunction: {
-      name: functionName,
-      arguments: args,
+      surfaceId,
+      functionCallId: crypto.randomUUID(),
+      callFunction: { ...args, '@call': functionName },
     },
   }
 }
@@ -82,11 +74,11 @@ export function buildRendererRpcCall(
   args: Record<string, unknown>,
 ): A2UIRpcCall {
   return {
-    a2uiVersion: A2UI_PROTOCOL_VERSION,
-    surfaceId,
+    version: A2UI_PROTOCOL_VERSION,
     callRendererFunction: {
-      name: functionName,
-      arguments: args,
+      surfaceId,
+      functionCallId: crypto.randomUUID(),
+      callFunction: { ...args, '@call': functionName, catalogId: A2UI_CATALOG_ID },
     },
   }
 }

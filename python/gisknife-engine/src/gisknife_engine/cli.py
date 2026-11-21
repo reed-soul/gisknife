@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+from pathlib import Path
 import sys
 import traceback
 from typing import Any
@@ -32,6 +33,11 @@ def get_capabilities() -> dict[str, Any]:
 def dispatch_rpc(req: dict[str, Any]) -> dict[str, Any]:
     op = req.get("op")
     params = req.get("params") or {}
+    if params.get('outputPath'):
+        target = Path(params['outputPath']).expanduser()
+        for key in ('inputPath', 'secondInputPath'):
+            if params.get(key) and target.exists() and target.samefile(Path(params[key]).expanduser()):
+                raise ValueError('Output would overwrite an input file')
 
     if op == "capabilities":
         return get_capabilities()
@@ -68,13 +74,14 @@ def dispatch_rpc(req: dict[str, Any]) -> dict[str, Any]:
         return run_spatial_sql(
             sql=params["sql"],
             output_path=params.get("outputPath"),
+            result_crs=params.get('resultCrs'),
         )
     if op == "overture_fetch":
         return fetch_overture_bbox(
             bbox=params["bbox"],
             layers=params.get("layers", ["roads", "buildings"]),
             output_path=params["outputPath"],
-            release=params.get("release", "2025-12-17.0"),
+            release=params.get('release'),
         )
     if op == "raster_inspect":
         return inspect_raster(input_path=params["inputPath"])

@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import Papa from 'papaparse'
+import { assertDistinctOutput, coordinateNumber } from '../files.js'
 import proj4 from 'proj4'
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, Position } from 'geojson'
 import type { GisknifeWarning } from '../types.js'
@@ -321,6 +322,7 @@ function transformPositionArray(
     const x = swapAxes ? pos[1] : pos[0]
     const y = swapAxes ? pos[0] : pos[1]
     const { output } = convertRawTuple(x, y, from, to)
+    if (!output.every(Number.isFinite)) throw new Error('Non-finite projected coordinate; check CRS, zone prefix and axis order')
     const nx = roundCoord(output[0], precision)
     const ny = roundCoord(output[1], precision)
     return pos.length > 2 ? [nx, ny, ...pos.slice(2)] : [nx, ny]
@@ -551,8 +553,8 @@ export function convertCsvContent(
   const validPoints: SniffPoint[] = []
   for (const row of parsed.data) {
     if (validPoints.length >= 50) break
-    const rx = Number(row[xCol])
-    const ry = Number(row[yCol])
+    const rx = coordinateNumber(row[xCol])
+    const ry = coordinateNumber(row[yCol])
     if (Number.isFinite(rx) && Number.isFinite(ry)) {
       validPoints.push(options.swapInputAxes ? { x: ry, y: rx } : { x: rx, y: ry })
     }
@@ -583,8 +585,8 @@ export function convertCsvContent(
   const wgs84Sample: SniffPoint[] = []
 
   const outputRows = parsed.data.map((row) => {
-    const rawX = Number(row[xCol])
-    const rawY = Number(row[yCol])
+    const rawX = coordinateNumber(row[xCol])
+    const rawY = coordinateNumber(row[yCol])
     if (!Number.isFinite(rawX) || !Number.isFinite(rawY)) {
       skippedCount += 1
       if (mode === 'overwrite') return { ...row }
@@ -596,6 +598,7 @@ export function convertCsvContent(
     if (wgs84Sample.length < 50) {
       wgs84Sample.push({ x: wgs84[0], y: wgs84[1] })
     }
+    if (!output.every(Number.isFinite)) throw new Error('Non-finite projected CSV coordinate; check source CRS before writing')
     transformedCount += 1
     return {
       ...row,
@@ -637,6 +640,7 @@ export function convertCsvFile(
   outputPath: string,
   options: CsvTransformOptions,
 ): CsvTransformSummary {
+  assertDistinctOutput(inputPath, outputPath)
   const raw = fs.readFileSync(inputPath, 'utf8')
   const { csv, summary } = convertCsvContent(raw, options)
   fs.mkdirSync(path.dirname(path.resolve(outputPath)), { recursive: true })

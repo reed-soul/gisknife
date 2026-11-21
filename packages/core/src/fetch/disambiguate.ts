@@ -123,6 +123,13 @@ export function resolvePlaceIntent(
 ): PlaceResolution {
   const cleaned = rawQuery.trim()
   const norm = cleaned.toLowerCase().replace(/\s+/g, ' ')
+  if (['朝阳区', '朝阳', 'chaoyang'].includes(norm)) {
+    if (!options.pickFirst) return { status: 'disambiguation_required', canonicalQuery: cleaned, regionGroup: 'china', candidates: [
+      { id: '110105', label: '北京市朝阳区', description: '北京', queryHint: '北京市朝阳区' },
+      { id: '220104', label: '长春市朝阳区', description: '吉林省长春市', queryHint: '长春市朝阳区' },
+    ] }
+    return resolvePlaceIntent('北京市朝阳区', { level: options.level })
+  }
 
   // 1. Informal regions (Silicon Valley, etc.)
   for (const inf of INFORMAL_REGIONS) {

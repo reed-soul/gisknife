@@ -36,7 +36,7 @@ export interface DisambiguationCandidate {
 
 export interface ResultEnvelope {
   ok: boolean
-  status?: 'completed' | 'disambiguation_required' | 'picker_required' | 'error'
+  status?: 'completed' | 'engine_required' | 'disambiguation_required' | 'picker_required' | 'error'
   command: string
   engine: EngineName
   outputPath?: string

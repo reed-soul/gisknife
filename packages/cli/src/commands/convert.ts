@@ -1,6 +1,7 @@
 import path from 'node:path'
 import {
-  convertLightVectorFile,
+  convertLightVectorFileDetailed,
+  convertWithEngine,
   detectFormatFromPath,
   isLightFormat,
   summarizeGeoJson,
@@ -20,7 +21,7 @@ export function registerConvertCommand(program: Command): void {
       const dstFmt = detectFormatFromPath(opts.output)
 
       if (opts.engine !== 'python' && !opts.toCrs && isLightFormat(srcFmt) && isLightFormat(dstFmt)) {
-        const fc = convertLightVectorFile(input, opts.output, srcFmt, dstFmt)
+        const { written, inputFeatureCount } = convertLightVectorFileDetailed(input, opts.output, srcFmt, dstFmt)
         console.log(
           JSON.stringify(
             {
@@ -31,7 +32,8 @@ export function registerConvertCommand(program: Command): void {
               outputPath: path.resolve(opts.output),
               fromFormat: srcFmt,
               toFormat: dstFmt,
-              ...summarizeGeoJson(fc),
+              inputFeatureCount,
+              ...summarizeGeoJson(written),
             },
             null,
             2,
@@ -40,11 +42,8 @@ export function registerConvertCommand(program: Command): void {
         return
       }
 
-      const res = await runPythonEngine('convert', {
-        inputPath: input,
-        outputPath: opts.output,
-        targetCrs: opts.toCrs,
-      })
+      if (opts.engine === 'ts') throw new Error('This conversion requires the Python engine.')
+      const res = await convertWithEngine(input, opts.output, runPythonEngine, opts.toCrs)
       console.log(JSON.stringify(res, null, 2))
     })
 }

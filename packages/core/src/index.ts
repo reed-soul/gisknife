@@ -1,4 +1,5 @@
 export * from './types.js'
+export * from './files.js'
 export * from './crs/index.js'
 export * from './fetch/index.js'
 export * from './convert/index.js'

@@ -10,30 +10,17 @@ export async function fetchDataVBoundary(
   const suffix = params.subdivisions ? '_full' : ''
   const url = `https://geo.datav.aliyun.com/areas_v3/bound/${params.adcode}${suffix}.json`
 
-  let fc: FeatureCollection<Geometry, GeoJsonProperties>
-  try {
-    fc = (await fetchJsonWithTimeout(url, {
+  const fc = (await fetchJsonWithTimeout(url, {
       fetchImpl: config.fetchImpl,
       timeoutMs: 15_000,
     })) as FeatureCollection<Geometry, GeoJsonProperties>
-  } catch (err) {
-    // Subdistrict / leaf district has no _full.json; fallback to single bound file
-    if (params.subdivisions) {
-      const fallbackUrl = `https://geo.datav.aliyun.com/areas_v3/bound/${params.adcode}.json`
-      fc = (await fetchJsonWithTimeout(fallbackUrl, {
-        fetchImpl: config.fetchImpl,
-        timeoutMs: 15_000,
-      })) as FeatureCollection<Geometry, GeoJsonProperties>
-    } else {
-      throw err
-    }
-  }
 
   if (!fc || !Array.isArray(fc.features) || fc.features.length === 0) {
     return null
   }
 
   const warnings: GisknifeWarning[] = []
+  if (params.subdivisions && fc.features.some(feature => String(feature.properties?.adcode) === params.adcode)) return null
   let outputFc = fc
   let crs = 'GCJ02'
 

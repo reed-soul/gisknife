@@ -139,13 +139,16 @@ export function generatePreviewHtml(
       const inspectFeature = (e) => {
         const feat = e.features && e.features[0];
         if (!feat) return;
-        const rows = Object.entries(feat.properties || {})
-          .slice(0, 20)
-          .map(([k, v]) => '<tr><th>' + k + '</th><td>' + String(v) + '</td></tr>')
-          .join('');
+        const table = document.createElement('table');
+        for (const [key, value] of Object.entries(feat.properties || {}).slice(0, 20)) {
+          const row = table.insertRow();
+          row.appendChild(document.createElement('th')).textContent = key;
+          row.insertCell().textContent = String(value);
+        }
+        if (!table.rows.length) table.createCaption().textContent = 'No properties';
         new maplibregl.Popup()
           .setLngLat(e.lngLat)
-          .setHTML(rows ? '<table>' + rows + '</table>' : '<em>No properties</em>')
+          .setDOMContent(table)
           .addTo(map);
       };
 

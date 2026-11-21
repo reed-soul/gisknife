@@ -67,8 +67,8 @@ export async function fetchAmapBoundary(
 
   const features: Array<Feature<Geometry, GeoJsonProperties>> = []
   const targetList =
-    params.subdistrict && data.districts[0].districts?.length
-      ? data.districts[0].districts
+    params.subdistrict
+      ? data.districts[0].districts ?? []
       : data.districts
 
   for (const item of targetList) {

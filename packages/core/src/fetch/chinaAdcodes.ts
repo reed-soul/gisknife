@@ -28,6 +28,7 @@ export const CHINA_ADMIN_INDEX: ChinaAdminEntry[] = [
   { adcode: '370000', name: '山东省', english: 'Shandong', level: 'province', parentAdcode: '100000', aliases: ['山东', 'shandong'] },
   { adcode: '430000', name: '湖南省', english: 'Hunan', level: 'province', parentAdcode: '100000', aliases: ['湖南', 'hunan'] },
   // Major Prefectures / Cities
+  { adcode: '220100', name: '长春市', english: 'Changchun', level: 'city', parentAdcode: '220000', aliases: ['长春'] },
   { adcode: '440100', name: '广州市', english: 'Guangzhou', level: 'city', parentAdcode: '440000', aliases: ['广州', 'guangzhou'] },
   { adcode: '440300', name: '深圳市', english: 'Shenzhen', level: 'city', parentAdcode: '440000', aliases: ['深圳', 'shenzhen'] },
   { adcode: '440600', name: '佛山市', english: 'Foshan', level: 'city', parentAdcode: '440000', aliases: ['佛山', 'foshan'] },
@@ -41,6 +42,8 @@ export const CHINA_ADMIN_INDEX: ChinaAdminEntry[] = [
   { adcode: '610100', name: '西安市', english: "Xi'an", level: 'city', parentAdcode: '610000', aliases: ['西安', 'xian', "xi'an"] },
   { adcode: '350200', name: '厦门市', english: 'Xiamen', level: 'city', parentAdcode: '350000', aliases: ['厦门', 'xiamen'] },
   // Key Districts (Shenzhen & Foshan & Beijing & Shanghai)
+  { adcode: '440308', name: '盐田区', english: 'Yantian', level: 'district', parentAdcode: '440300', aliases: ['深圳盐田', '深圳盐田区'] },
+  { adcode: '220104', name: '朝阳区', english: 'Chaoyang, Changchun', level: 'district', parentAdcode: '220100', aliases: ['长春朝阳', '长春朝阳区'] },
   { adcode: '440303', name: '罗湖区', english: 'Luohu', level: 'district', parentAdcode: '440300', aliases: ['罗湖', '深圳罗湖', '深圳罗湖区', 'luohu'] },
   { adcode: '440304', name: '福田区', english: 'Futian', level: 'district', parentAdcode: '440300', aliases: ['福田', '深圳福田', '深圳福田区', 'futian'] },
   { adcode: '440305', name: '南山区', english: 'Nanshan', level: 'district', parentAdcode: '440300', aliases: ['南山', '南山区', '深圳南山', '深圳南山区', 'nanshan', 'nanshan shenzhen'] },
@@ -55,6 +58,7 @@ export const CHINA_ADMIN_INDEX: ChinaAdminEntry[] = [
 ]
 
 export function normalizeChinaQuery(raw: string): string {
+  if (/^(中国|china)$/i.test(raw.trim())) return raw.trim().toLowerCase()
   return raw
     .trim()
     .toLowerCase()
@@ -83,19 +87,10 @@ export function lookupChinaAdmin(query: string): ChinaAdminEntry | undefined {
     }
   }
 
-  // Composite check (e.g. "深圳市南山区" or "广东佛山" -> longest matching district/city alias)
-  const sorted = [...CHINA_ADMIN_INDEX].sort((a, b) => {
-    const rank = { district: 0, city: 1, province: 2, country: 3 }
-    return rank[a.level] - rank[b.level]
-  })
-  for (const entry of sorted) {
-    if (entry.level === 'country') continue
-    if (
-      norm.endsWith(entry.name.toLowerCase()) ||
-      entry.aliases.some((a) => a.length >= 2 && norm.includes(a.toLowerCase()))
-    ) {
-      return entry
-    }
+  for (const entry of CHINA_ADMIN_INDEX) {
+    const parent = CHINA_ADMIN_INDEX.find(candidate => candidate.adcode === entry.parentAdcode)
+    if (parent && [parent.name, ...parent.aliases].some(prefix =>
+      [entry.name, ...entry.aliases].some(name => `${prefix}${name}`.toLowerCase() === norm))) return entry
   }
 
   return undefined

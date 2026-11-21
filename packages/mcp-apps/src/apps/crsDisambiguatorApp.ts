@@ -30,12 +30,17 @@ export function getCrsDisambiguatorAppHtml(): string {
   </div>
   <script>${buildMcpAppBridgeScript()}</script>
   <script>
-    let state = { declaredCrs: 'EPSG:4547', suggestedCrs: 'EPSG:4526' };
+    let state = {};
+    const suggestion = document.getElementById('useSuggested');
+    suggestion.disabled = true;
     window.gisknifeMcpHost.initialize().catch(() => {});
     window.gisknifeMcpHost.onNotification((msg) => {
       if (msg.method === 'ui/notifications/tool-result' && msg.params) {
-        state = { ...state, ...msg.params };
-        if (msg.params.message) document.getElementById('detail').textContent = msg.params.message;
+        const result = msg.params.structuredContent || {};
+        const warning = result.warnings?.find(item => item.details?.suggestedCrs);
+        state = { declaredCrs: result.declaredCrs, suggestedCrs: warning?.details?.suggestedCrs };
+        suggestion.disabled = !state.suggestedCrs;
+        document.getElementById('detail').textContent = result.warnings?.map(item => item.message).join(' ') || 'No correction suggested.';
       }
     });
     document.getElementById('useSuggested').onclick = () =>

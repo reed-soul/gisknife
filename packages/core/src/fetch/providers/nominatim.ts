@@ -34,11 +34,12 @@ export async function fetchNominatimBoundary(
   }
 
   const polygonal = fc.features.filter(
-    (f) => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon'),
+    (f) => (f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon') && (f.properties?.category ?? f.properties?.class) === 'boundary' && f.properties?.type === 'administrative',
   )
   if (polygonal.length === 0) {
     return null
   }
+  if (polygonal.length > 1) throw new Error('Multiple administrative boundaries match; qualify the name with its parent region or country.')
 
   return {
     geojson: {

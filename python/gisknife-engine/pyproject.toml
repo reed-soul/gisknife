@@ -7,7 +7,8 @@ name = "gisknife-engine"
 version = "0.1.0"
 description = "Python heavy compute engine for gisknife (DuckDB Spatial + httpfs, GeoPandas, Pyogrio, PyProj, Shapely, optional Rasterio/PySAL)."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "duckdb>=1.2.0",

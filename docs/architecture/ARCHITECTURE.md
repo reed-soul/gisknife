@@ -66,7 +66,7 @@ flowchart TB
 | `@gisknife/picker` | `packages/picker` | Zero-dependency ephemeral `127.0.0.1:0` HTTP server serving a self-contained MapLibre GL BBox/Polygon drawer & local file dropzone for terminal agents. |
 | `@gisknife/mcp-apps` | `packages/mcp-apps` | Sandboxed `ui://` interactive HTML widgets implementing MCP Apps (`io.modelcontextprotocol/ui`) via JSON-RPC `postMessage`. |
 | `@gisknife/a2ui-catalog` | `packages/a2ui-catalog` | Zod-validated A2UI 1.0 GIS Component Catalog, `@ag-ui/core` streaming event adapter, and `@ui-sdk/core` headless behavior bindings. |
-| `@gisknife/webmcp-bridge` | `packages/webmcp-bridge` | Canonical `document.modelContext` WebMCP tool descriptors (matching `gis.taoliapp.com`'s 18 tools + 4 new HITL/fetch tools) & `#wf=` workbench URL builder. |
+| `@gisknife/webmcp-bridge` | `packages/webmcp-bridge` | The workbench's 18 existing tool descriptors, five opt-in handoff tools, and the `#wf=` URL builder. |
 | `@gisknife/mcp` | `packages/mcp` | Stdio MCP server combining `@gisknife/core`, `@gisknife/mcp-apps` (`ui://` resources), and `@gisknife/picker`. |
 | `gisknife` | `packages/cli` | User-facing CLI (`gisknife`, alias `gk`) + Python `uvx` subprocess bridge (`engineBridge.ts`). |
 | `gisknife-engine` | `python/gisknife-engine` | Python 3.12 (`uv` / `uvx`) heavy compute engine: DuckDB Spatial + `httpfs`, GeoPandas/Pyogrio SHP (`.cpg` GBK/UTF-8 + `.zip`), GPKG, GeoParquet, FGB, DXF, `shapely.make_valid`, optional Rasterio/PySAL. |

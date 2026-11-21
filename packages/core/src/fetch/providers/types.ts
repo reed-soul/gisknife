@@ -58,7 +58,7 @@ export async function fetchJsonWithTimeout(
       },
     })
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status} ${res.statusText} from ${url}`)
+      throw new Error(`HTTP ${res.status} from ${new URL(url).origin}`)
     }
     return await res.json()
   } finally {

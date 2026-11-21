@@ -1,8 +1,12 @@
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
   convertCsvFile,
-  convertLightVectorFile,
+  convertLightVectorFileDetailed,
+  convertWithEngine,
+  assertDistinctOutput,
+  crsOutputPath,
   convertPoints,
   detectFormatFromPath,
   fetchBoundary,
@@ -10,6 +14,7 @@ import {
   inspectGeoJson,
   isLightFormat,
   parseCoordinateInput,
+  parseLightVectorText,
   readGeoJsonFile,
   reprojectGeoJson,
   runGeometryQa,
@@ -41,6 +46,7 @@ export interface RegisterMcpToolsOptions {
 
 function jsonToolResponse(payload: unknown) {
   return {
+    isError: Boolean(payload && typeof payload === 'object' && 'ok' in payload && payload.ok === false),
     content: [{ type: 'text' as const, text: JSON.stringify(payload, null, 2) }],
   }
 }
@@ -70,6 +76,7 @@ export function registerGisMcpCapabilities(
               uri: res.uri,
               mimeType: res.mimeType,
               text: html,
+              _meta: { ui: { csp: { resourceDomains: ['https://unpkg.com', 'https://tile.openstreetmap.org'], connectDomains: ['https://tile.openstreetmap.org', 'https://unpkg.com'] } } },
             },
           ],
         }
@@ -81,6 +88,7 @@ export function registerGisMcpCapabilities(
   server.registerTool(
     'gis_crs_convert',
     {
+      _meta: buildMcpAppToolMeta(MCP_APP_URIS.crsDisambiguator),
       title: 'CRS Coordinate / CSV / GeoJSON Converter',
       description:
         'Convert coordinate strings, CSV files (preserving all business columns), or GeoJSON across WGS84, EPSG, CGCS2000 (4547/4526), GCJ-02, and BD-09 with automatic zone-prefix and XY-swap sniffing.',
@@ -98,7 +106,7 @@ export function registerGisMcpCapabilities(
     },
     async (args) => {
       if (args.csvInputPath) {
-        const out = args.outputPath ?? args.csvInputPath.replace(/\.csv$/i, `_${args.toCrs}.csv`)
+        const out = args.outputPath ?? crsOutputPath(args.csvInputPath, args.toCrs, 'csv')
         const summary = convertCsvFile(args.csvInputPath, out, {
           fromCrs: args.fromCrs,
           toCrs: args.toCrs,
@@ -109,7 +117,8 @@ export function registerGisMcpCapabilities(
         return jsonToolResponse({ ok: true, outputPath: path.resolve(out), ...summary })
       }
       if (args.geojsonInputPath) {
-        const out = args.outputPath ?? args.geojsonInputPath.replace(/\.geojson$/i, `_${args.toCrs}.geojson`)
+        const out = args.outputPath ?? crsOutputPath(args.geojsonInputPath, args.toCrs, 'geojson')
+        assertDistinctOutput(args.geojsonInputPath, out)
         const fc = readGeoJsonFile(args.geojsonInputPath)
         const res = reprojectGeoJson(fc, args.fromCrs, args.toCrs, {
           swapInputAxes: args.swapAxes,
@@ -130,7 +139,8 @@ export function registerGisMcpCapabilities(
           swapInputAxes: args.swapAxes,
           autoFixSniffed: args.autoFix,
         })
-        return jsonToolResponse({ ok: true, ...res })
+        const valid = res.points.every(point => point.output.every(Number.isFinite))
+        return { ...jsonToolResponse(valid ? { ok: true, ...res } : { ok: false, status: 'disambiguation_required', warnings: res.warnings }), structuredContent: { declaredCrs: res.fromCrs, warnings: res.warnings } }
       }
       throw new Error('Provide one of coordinates, csvInputPath, or geojsonInputPath.')
     },
@@ -139,9 +149,9 @@ export function registerGisMcpCapabilities(
   server.registerTool(
     'gis_fetch_boundary',
     {
-      title: 'Fetch Administrative Boundary',
+      title: 'Fetch Administrative Boundary (Beta)',
       description:
-        'Fetch administrative boundary GeoJSON (Global, US Census TIGER, China province/city/district via DataV, China street/subdistrict via Overpass/Index) and write to disk.',
+        'Beta: Fetch administrative boundary GeoJSON from online providers and write to disk. Availability and coverage vary, especially for street-level boundaries. Verify the result before use.',
       inputSchema: {
         query: z.string().describe('Place name, e.g., "Washington", "Washington, D.C.", "佛山", "深圳南山区"'),
         outputPath: z.string().describe('Target GeoJSON path on disk'),
@@ -149,6 +159,9 @@ export function registerGisMcpCapabilities(
         subdivisions: z.boolean().optional().default(false),
         toWgs84: z.boolean().optional().default(true),
         pickFirst: z.boolean().optional().default(false),
+        source: z.enum(['auto', 'datav', 'overpass', 'nominatim', 'tiger', 'geoboundaries', 'index', 'amap', 'tianditu']).optional(),
+        iso3: z.string().optional(),
+        noCache: z.boolean().optional(),
       },
     },
     async (args) => {
@@ -157,6 +170,9 @@ export function registerGisMcpCapabilities(
         subdivisions: args.subdivisions,
         toWgs84: args.toWgs84,
         pickFirst: args.pickFirst,
+        source: args.source,
+        iso3: args.iso3,
+        noCache: args.noCache,
         outputPath: args.outputPath,
       })
       return jsonToolResponse(res)
@@ -166,9 +182,9 @@ export function registerGisMcpCapabilities(
   server.registerTool(
     'gis_fetch_osm',
     {
-      title: 'Fetch OSM / Overture Vector Data',
+      title: 'Fetch OSM / Overture Vector Data (Beta)',
       description:
-        'Fetch OpenStreetMap roads, buildings, POIs, water, or landuse by place or BBox; routes large metro areas to Overture Maps S3 if Python engine is configured.',
+        'Beta: Fetch roads, buildings, POIs, water, or land use by place or BBox; large areas can use Overture Maps with the Python engine. Availability and coverage depend on the provider.',
       inputSchema: {
         outputPath: z.string().describe('Target output file path (.geojson or .parquet)'),
         place: z.string().optional(),
@@ -188,7 +204,8 @@ export function registerGisMcpCapabilities(
         outputPath: args.outputPath,
       })
       const routeData = res.data as { route?: string; bbox?: number[]; layers?: string[] } | undefined
-      if (routeData?.route === 'overture-s3' && options.heavyRunner) {
+      if (routeData?.route === 'overture-s3') {
+        if (!options.heavyRunner) throw new Error('Overture requires the Python engine; start gisknife mcp with uv installed')
         const heavy = await options.heavyRunner('overture_fetch', {
           bbox: routeData.bbox,
           layers: routeData.layers,
@@ -213,7 +230,14 @@ export function registerGisMcpCapabilities(
       },
     },
     async (args) => {
-      const fc = readGeoJsonFile(args.inputPath)
+      const format = detectFormatFromPath(args.inputPath)
+      if (!format) throw new Error('Unsupported input format')
+      if (!isLightFormat(format)) {
+        if (!options.heavyRunner) throw new Error('Use gisknife mcp with uv to inspect this format')
+        if (format === 'geotiff' && (args.qa || args.fix)) throw new Error('GeoTIFF supports metadata inspection only')
+        return jsonToolResponse(await options.heavyRunner(format === 'geotiff' ? 'raster_inspect' : 'qa', { inputPath: args.inputPath, fix: args.fix, outputPath: args.fix ? args.outputPath : undefined }))
+      }
+      const fc = parseLightVectorText(fs.readFileSync(args.inputPath, 'utf8'), format)
       const stat = fs.statSync(args.inputPath)
       const inspect = inspectGeoJson(fc, {
         filePath: args.inputPath,
@@ -226,6 +250,8 @@ export function registerGisMcpCapabilities(
       const qa = runGeometryQa(fc, { fix: args.fix })
       let writtenPath: string | undefined
       if (args.fix && args.outputPath) {
+        if (!/\.(geojson|json)$/i.test(args.outputPath)) throw new Error('Choose a .geojson output for the repaired layer')
+        assertDistinctOutput(args.inputPath, args.outputPath)
         writtenPath = writeGeoJsonFile(args.outputPath, qa.geojson)
       }
       return jsonToolResponse({ ok: true, inspect, qa: qa.report, outputPath: writtenPath })
@@ -247,21 +273,19 @@ export function registerGisMcpCapabilities(
       const src = detectFormatFromPath(args.inputPath)
       const dst = detectFormatFromPath(args.outputPath)
       if (isLightFormat(src) && isLightFormat(dst)) {
-        const fc = convertLightVectorFile(args.inputPath, args.outputPath, src, dst)
+        const { written: fc, inputFeatureCount } = convertLightVectorFileDetailed(args.inputPath, args.outputPath, src, dst)
         return jsonToolResponse({
           ok: true,
           engine: 'ts-core',
           outputPath: path.resolve(args.outputPath),
+          inputFeatureCount,
           ...summarizeGeoJson(fc),
         })
       }
       if (!options.heavyRunner) {
         throw new Error('Heavy format conversion requires the Python uvx engine runner.')
       }
-      const res = await options.heavyRunner('convert', {
-        inputPath: args.inputPath,
-        outputPath: args.outputPath,
-      })
+      const res = await convertWithEngine(args.inputPath, args.outputPath, options.heavyRunner)
       return jsonToolResponse(res)
     },
   )
@@ -304,6 +328,8 @@ export function registerGisMcpCapabilities(
       })
       let outPath: string | undefined
       if (result.geojson && args.outputPath) {
+        assertDistinctOutput(args.inputPath, args.outputPath)
+        if (args.secondInputPath) assertDistinctOutput(args.secondInputPath, args.outputPath)
         outPath = writeGeoJsonFile(args.outputPath, result.geojson)
       }
       return jsonToolResponse({
@@ -324,6 +350,7 @@ export function registerGisMcpCapabilities(
       description: 'Execute DuckDB Spatial SQL over local GIS files or remote GeoParquet and write results to disk.',
       inputSchema: {
         sql: z.string(),
+        resultCrs: z.string().optional(),
         outputPath: z.string(),
       },
     },
@@ -333,6 +360,7 @@ export function registerGisMcpCapabilities(
       }
       const res = await options.heavyRunner('sql', {
         sql: args.sql,
+        resultCrs: args.resultCrs,
         outputPath: args.outputPath,
       })
       return jsonToolResponse(res)
@@ -353,13 +381,21 @@ export function registerGisMcpCapabilities(
       _meta: buildMcpAppToolMeta(MCP_APP_URIS.picker),
     },
     async (args) => {
-      if (args.useLocalFallback) {
+      const capabilities = server.server.getClientCapabilities()
+      if (args.useLocalFallback || args.mode !== 'bbox' || !capabilities?.extensions?.['io.modelcontextprotocol/ui']) {
         const picked = await startEphemeralPicker({
           mode: args.mode,
           initialBbox: args.initialBbox,
           openBrowser: true,
+          timeoutMs: 300_000,
         })
-        return jsonToolResponse({ ok: true, source: 'ephemeral-picker', ...picked })
+        if (picked.uploadedFile && !picked.cancelled) {
+          const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'gisknife-picked-'))
+          const outputPath = path.join(directory, path.basename(picked.uploadedFile.name))
+          fs.writeFileSync(outputPath, picked.uploadedFile.content, { flag: 'wx', mode: 0o600 })
+          return jsonToolResponse({ ok: true, source: 'ephemeral-picker', outputPath })
+        }
+        return jsonToolResponse({ ok: !picked.cancelled, source: 'ephemeral-picker', ...picked, uploadedFile: undefined })
       }
       return jsonToolResponse({
         ok: true,
@@ -384,12 +420,14 @@ export function registerGisMcpCapabilities(
     },
     async (args) => {
       const fc = readGeoJsonFile(args.inputPath)
+      assertDistinctOutput(args.inputPath, args.outputHtmlPath)
       const resolvedHtml = writePreviewHtmlFile(args.outputHtmlPath, fc, { title: args.title })
-      return jsonToolResponse({
+      const summary = { ...summarizeGeoJson(fc), crs: inspectGeoJson(fc).crsHint }
+      return { ...jsonToolResponse({
         ok: true,
         outputPath: resolvedHtml,
-        ...summarizeGeoJson(fc),
-      })
+        ...summary,
+      }), structuredContent: summary, _meta: { geojson: fc } }
     },
   )
 }

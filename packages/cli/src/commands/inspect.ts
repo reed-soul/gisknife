@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
   detectFormatFromPath,
+  assertDistinctOutput,
   inspectGeoJson,
   isLightFormat,
   parseLightVectorText,
@@ -56,6 +57,7 @@ export function registerInspectCommands(program: Command): void {
         let outPath: string | undefined
         if (opts.fix) {
           const target = opts.output ?? file.replace(/(\.geojson|\.json)?$/i, '_fixed.geojson')
+          assertDistinctOutput(file, target)
           outPath = writeGeoJsonFile(target, geojson)
         }
         console.log(

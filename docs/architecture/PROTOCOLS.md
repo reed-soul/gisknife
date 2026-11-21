@@ -1,62 +1,28 @@
-# Multi-Protocol Interaction Architecture (Skill, CLI, Picker, MCP Apps, A2UI 1.0, AG-UI, Vercel UI SDK, WebMCP)
+# Protocols shipped in 0.1.0
 
-Each modern agent/UI protocol in `gisknife` solves a **distinct** layer of the stack. Never force one protocol to do another layer's job.
+The CLI runs without a UI. The Agent Skill is instructions, not the runtime. Terminal sessions can request a temporary picker on loopback. MCP clients use stdio; MCP Apps, browser tools and declarative surfaces are separate interfaces, not interchangeable host requirements.
 
-## 1. Protocol Responsibility Matrix
+| Interface | Implemented contract | Fallback / boundary |
+|---|---|---|
+| MCP | Nine tools on `gisknife mcp`; heavy operations use the CLI's uv bridge | A plain stdio client receives text results; GIS output goes to an explicit local path |
+| MCP Apps | Three HTML resources: picker, preview and CRS disambiguator. Tool metadata binds the URI; the iframe initializes, receives tool notifications and calls `ui/message` | BBox inside the host; terminal picker for files/polygons on the same machine. Preview includes layer data in UI-only metadata |
+| A2UI + AG-UI | One complete v1.0 `createSurface` in an AG-UI CUSTOM event and one decision via `callAgentFunction`. The emitter can also produce run/step/state events | Six GIS component types; not a general-purpose incremental renderer, hosted LLM or network chat service |
+| UI SDK | The Vue renderer uses native modal dialogs and keyboard controls, and `@ui-sdk/core` for announcements | A beta dependency; not a claim that arbitrary React/mobile hosts were tested |
+| WebMCP | The browser registers 18 existing tools plus five on the candidate handoff page (render surface, bbox, boundary, OSM, export); registration ends on unmount | Feature-detected. Ordinary workflow upload/run/download needs no WebMCP |
+| Handoff | The CLI puts a centroid, buffer or bbox recipe in the URL fragment. The user selects the file locally | Does not send input data to the website in the URL. MapLibre, tiles and explicitly requested public datasets use the network |
 
-| Layer / Protocol | Standard / Package | Who Renders / Calls It | Best Used For in `gisknife` | Anti-Pattern (Do NOT Do) |
-|---|---|---|---|---|
-| **Agent Skill** | `agentskills.io` (`SKILL.md` + `references/`) | Claude Code, Codex, Cursor, Antigravity | Teaching the AI *when* to use which tool, enforcing spatial guardrails (`4547` vs `4526`, project-before-buffer), and keeping context clean. | Stuffing 5,000 lines of API docs into `SKILL.md`. |
-| **Zero-Config CLI** | `packages/cli` (`gisknife` / `gk`) | Shell agents & human practitioners | 85%+ of workflows: point/CSV CRS rewrite, boundary/OSM fetch, format convert, Spatial SQL, HTML map preview. | Spawning a browser just to convert coordinates. |
-| **Ephemeral Localhost Picker** | `packages/picker` (`127.0.0.1:0`) | Pure terminal agents lacking inline UI | Fallback HITL when the user must draw an informal BBox/Polygon or drag-drop a private file. Closes itself on submit. | Running a persistent background daemon. |
-| **MCP + MCP Apps** | `@modelcontextprotocol/sdk` + `io.modelcontextprotocol/ui` (`packages/mcp`, `packages/mcp-apps`) | Claude Desktop/Web, Cursor, VS Code Copilot | Inline sandboxed `ui://` map box picker (`ui://gisknife/picker`), visual QA (`ui://gisknife/preview`), and CRS disambiguation (`ui://gisknife/crs-disambiguator`). | Streaming multi-MB GeoJSON text inside MCP tool replies. |
-| **A2UI 1.0 + AG-UI** | Google A2UI v1.0 + `@ag-ui/core` (`packages/a2ui-catalog`) | `gis.taoliapp.com` L3 AI Copilot & cross-platform A2UI hosts | Streaming declarative GIS UI surfaces (`createSurface`, `updateComponents`, `updateDataModel`) & bidirectional `callAgentFunction` over AG-UI `CustomEvent` / `StateDelta`. | Expecting terminal CLIs (like raw zsh) to render A2UI JSON natively. |
-| **Vercel UI SDK** | `@ui-sdk/core` (`packages/a2ui-catalog/src/uiSdkAdapter.ts`) | Vue 3 / React / Web Components renderers | Headless accessible UI primitives (focus trap, dialog, select, popover, keyboard nav) backing A2UI catalog widgets cleanly across frameworks. | Rewriting an entire existing Vue workbench just for hype. |
-| **WebMCP** | `document.modelContext` (`packages/webmcp-bridge`) | Browser-native AI agents when `gis.taoliapp.com` is open | Exposing the browser workbench's 18+4 client-side WASM tools + generating `#wf=` handoff URLs from CLI to web workbench. | Making the CLI depend on headless Chrome + WebMCP for basic math. |
+## Wire example
 
-## 2. HITL Fallback Ladder (Degrades Gracefully Everywhere)
-
-```text
-Need visual user input (e.g., "Draw Silicon Valley" or "Confirm EPSG:4547 axis swap")?
-  │
-  ├─► Inside gis.taoliapp.com Copilot? ──► Stream A2UI 1.0 Surface via AG-UI (MapBBoxPicker / CrsDisambiguator)
-  │
-  ├─► Inside MCP Host supporting MCP Apps? ──► Return tool result + ui://gisknife/picker resource metadata
-  │
-  └─► Inside Terminal Agent / Raw CLI? ──► Launch @gisknife/picker on 127.0.0.1:<random-port> -> auto-close on POST /submit
-```
-
-## 3. Concrete Protocol Payloads
-
-### A2UI 1.0 Surface Envelope (Carried inside AG-UI `CustomEvent`)
+`@a2ui/web_core/v1_0` requires a root node named `root`. Component fields are on the node, not under a `props` wrapper:
 
 ```json
-{
-  "type": "CUSTOM",
-  "name": "a2ui.frame",
-  "value": {
-    "a2uiVersion": "1.0",
-    "surfaceId": "gisknife-crs-check-1",
-    "createSurface": {
-      "catalogId": "gisknife.gis.v1",
-      "rootComponentId": "crs-dialog"
-    },
-    "updateComponents": [
-      {
-        "id": "crs-dialog",
-        "component": "CrsDisambiguator",
-        "props": {
-          "declaredCrs": "EPSG:4547",
-          "suggestedCrs": "EPSG:4526",
-          "reason": "Easting 38500000 contains 2-digit zone prefix 38 (EPSG:4526) rather than unzoned CM 114E (EPSG:4547).",
-          "sampleInput": [38500000, 2500000]
-        }
-      }
-    ]
-  }
-}
+{"type":"CUSTOM","name":"a2ui.frame","value":{"version":"1.0","createSurface":{"surfaceId":"check-1","catalogId":"gisknife.gis.v1","components":[{"id":"root","component":"CrsDisambiguator","declaredCrs":"EPSG:4547","suggestedCrs":"EPSG:4526","reason":"Easting starts with zone 38"}]}}}
 ```
 
-### MCP Apps Resource Binding (`packages/mcp`)
+The renderer replies with a unique call ID. The caller, not the renderer, runs the confirmed conversion:
 
-Tools such as `gis_pick_area` advertise `_meta: { ui: { resourceUri: "ui://gisknife/picker" } }` and `packages/mcp` serves `ui://gisknife/picker` with `mimeType: "text/html;profile=mcp-app"`. Inside the sandboxed iframe, the widget exchanges standard JSON-RPC `postMessage` frames (`ui/initialize`, `tools/call`, `ui/message`) to pass selected BBox/Polygon GeoJSON back to the host.
+```json
+{"version":"1.0","callAgentFunction":{"surfaceId":"check-1","functionCallId":"decision-1","callFunction":{"@call":"gisknife.confirmCrsChoice","choice":"EPSG:4526"}}}
+```
+
+See the [release matrix](../release/0.1.0.md) for the actual client, browser flags, versions and deployment status.

@@ -1,4 +1,5 @@
 import * as turf from '@turf/turf'
+import { assertDistinctOutput } from '../files.js'
 import type { Feature, FeatureCollection, GeoJsonProperties, Geometry, MultiPolygon, Polygon } from 'geojson'
 import { readGeoJsonFile, summarizeGeoJson, writeGeoJsonFile } from '../convert/inspect.js'
 import type { BBox, GisknifeWarning, ProviderConfig, ResultEnvelope } from '../types.js'
@@ -63,24 +64,31 @@ export function estimateBBoxAreaKm2(bbox: BBox): number {
 function filterFeaturesInsideParent(
   subdivisions: FeatureCollection<Geometry, GeoJsonProperties>,
   parent: FeatureCollection<Geometry, GeoJsonProperties>,
+  parentCode: string,
 ): FeatureCollection<Geometry, GeoJsonProperties> {
   const parentPolys = parent.features.filter(
     (f): f is Feature<Polygon | MultiPolygon, GeoJsonProperties> =>
       Boolean(f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')),
   )
-  if (parentPolys.length === 0) return subdivisions
+  if (parentPolys.length === 0) return { type: 'FeatureCollection', features: [] }
 
   const kept = subdivisions.features.filter((feat) => {
-    if (!feat.geometry) return false
+    if (feat.geometry?.type !== 'Polygon' && feat.geometry?.type !== 'MultiPolygon') return false
+    const adminCode = String(feat.properties?.['ref:admin:CN:mca'] ?? feat.properties?.['ref:admin:CN:nbs'] ?? '')
+    if (/^\d{9,12}$/.test(adminCode)) return adminCode.startsWith(parentCode)
     try {
-      const center = turf.centroid(feat)
-      return parentPolys.some((p) => turf.booleanPointInPolygon(center, p))
+      const polygon = turf.feature(feat.geometry)
+      const area = turf.area(polygon)
+      return area > 0 && parentPolys.some(parentPolygon => {
+        const common = turf.intersect(turf.featureCollection([polygon, parentPolygon]))
+        return common !== null && turf.area(common) / area > 0.5
+      })
     } catch {
-      return true
+      return false
     }
   })
 
-  return kept.length > 0 ? { type: 'FeatureCollection', features: kept } : subdivisions
+  return { type: 'FeatureCollection', features: kept }
 }
 
 function buildResultEnvelope(
@@ -120,6 +128,7 @@ export async function fetchBoundary(
     pickFirst: options.pickFirst,
     level: options.level,
   })
+  if (options.source && !['auto', 'tiger', 'datav', 'overpass', 'nominatim', 'index', 'amap', 'tianditu', 'geoboundaries'].includes(options.source)) throw new Error('Unknown boundary source')
 
   if (resolution.status === 'disambiguation_required') {
     return {
@@ -137,8 +146,13 @@ export async function fetchBoundary(
     }
   }
 
+  if (resolution.chinaMatch && options.level && options.level !== 'street' && options.level !== resolution.chinaMatch.level) {
+    return { ok: false, status: 'error', command: 'fetch boundary', engine: 'ts-core', error: `Requested ${options.level}, but ${query} resolves to ${resolution.chinaMatch.level}.` }
+  }
+
   const cacheKey = {
     query: resolution.canonicalQuery,
+    adcode: resolution.chinaMatch?.adcode,
     level: options.level,
     subdivisions: options.subdivisions,
     toWgs84: options.toWgs84,
@@ -147,7 +161,7 @@ export async function fetchBoundary(
   }
 
   const { value: fetched, cacheHit } = await getOrFetchCached<FetchedBoundary | null>(
-    'boundary',
+    'boundary-v3',
     cacheKey,
     async () => {
       const srcPref = options.source ?? 'auto'
@@ -163,6 +177,17 @@ export async function fetchBoundary(
       }
 
       // Explicit source overrides
+      if (resolution.regionGroup === 'china' && !resolution.chinaMatch && /[区县]$/.test(query.trim())) throw new Error(`Cannot verify the parent district for "${query}". Use a supported, qualified district name.`)
+      const geoBoundary = () => fetchGeoBoundaries({ iso3: options.iso3!, admLevel: ({ country: 0, province: 1, state: 1, city: 2, county: 2, district: 3, street: 4 })[options.level ?? 'country'], filterName: resolution.canonicalQuery }, options)
+      if (srcPref === 'geoboundaries') return options.iso3 && !options.subdivisions ? geoBoundary() : null
+      if (srcPref === 'index') return resolution.chinaMatch && (!options.subdivisions || options.level === 'street') ? fetchFromStaticIndex({ templateKey: options.level === 'street' ? 'china_adm4_geojson' : 'china_adm3_geojson', vars: { adcode: resolution.chinaMatch.adcode } }, options) : null
+      if (srcPref === 'tianditu') return !options.subdivisions && options.level !== 'street' ? fetchTiandituBoundary({ keyword: query }, options) : null
+      if (srcPref === 'amap') {
+        const result = await fetchAmapBoundary({ keywords: resolution.chinaMatch?.adcode ?? query, subdistrict: options.subdivisions || options.level === 'street' ? 1 : 0, toWgs84: options.toWgs84 }, options)
+        return options.level !== 'street' || result?.geojson.features.every(feature => feature.properties?.level === 'street') ? result : null
+      }
+      if (srcPref === 'datav' && !resolution.chinaMatch) return null
+      if (srcPref === 'datav' && options.level === 'street') return null
       if (srcPref === 'datav' && resolution.chinaMatch) {
         return tryProvider('datav', () =>
           fetchDataVBoundary(
@@ -188,11 +213,14 @@ export async function fetchBoundary(
         )
       }
       if (srcPref === 'nominatim') {
+        if (options.subdivisions || options.level === 'street') return null
         return tryProvider('nominatim', () =>
-          fetchNominatimBoundary(resolution.canonicalQuery, options),
+          fetchNominatimBoundary(resolution.chinaMatch ? query : resolution.canonicalQuery, options, { countrycodes: resolution.regionGroup === 'china' ? 'cn' : resolution.regionGroup === 'us' ? 'us' : undefined }),
         )
       }
-      if (srcPref === 'overpass') {
+      const chineseStreets = resolution.regionGroup === 'china' && options.level === 'street'
+      if (srcPref === 'overpass' && !chineseStreets) {
+        if (!options.subdivisions) return null
         return tryProvider('overpass', () =>
           fetchOverpassSubdivisions(
             { areaName: resolution.canonicalQuery },
@@ -213,12 +241,13 @@ export async function fetchBoundary(
           ),
         )
         if (tiger) return tiger
+        if (options.subdivisions) return null
       }
 
       // Auto routing: 2. China street / ADM4 subdivisions
       if (resolution.regionGroup === 'china' && options.level === 'street') {
         if (resolution.chinaMatch) {
-          const fromIdx = await tryProvider('staticIndex', () =>
+          const fromIdx = srcPref === 'overpass' ? null : await tryProvider('staticIndex', () =>
             fetchFromStaticIndex(
               { templateKey: 'china_adm4_geojson', vars: { adcode: resolution.chinaMatch!.adcode } },
               options,
@@ -243,34 +272,46 @@ export async function fetchBoundary(
                 ),
               )
               if (streets) {
-                return {
+                const contained = filterFeaturesInsideParent(streets.geojson, parent.geojson, resolution.chinaMatch.adcode)
+                if (contained.features.length) return {
                   ...streets,
-                  geojson: filterFeaturesInsideParent(streets.geojson, parent.geojson),
+                  geojson: contained,
                 }
               }
             }
           }
+          const coded = await tryProvider('overpass-adcode', () => fetchOverpassSubdivisions({ parentAdcode: resolution.chinaMatch!.adcode }, options))
+          if (coded) return coded
         }
 
+        if (srcPref === 'overpass') {
+          if (errors.length) throw new Error(errors.join(' | '))
+          return null
+        }
         const amapSub = await tryProvider('amap', () =>
           fetchAmapBoundary(
             {
-              keywords: resolution.chinaMatch?.name ?? resolution.canonicalQuery,
+              keywords: resolution.chinaMatch?.adcode ?? resolution.canonicalQuery,
               subdistrict: 1,
               toWgs84: options.toWgs84 ?? true,
             },
             options,
           ),
         )
-        if (amapSub) return amapSub
+        if (amapSub && amapSub.geojson.features.every(feature => feature.properties?.level === 'street')) return amapSub
 
+        if (resolution.chinaMatch) {
+          if (errors.length) throw new Error(errors.join(' | '))
+          return null
+        }
         const overpassByName = await tryProvider('overpass-name', () =>
           fetchOverpassSubdivisions(
             { areaName: resolution.chinaMatch?.name ?? resolution.canonicalQuery, adminLevels: ['8', '9'] },
             options,
           ),
         )
-        if (overpassByName) return overpassByName
+        if (overpassByName && !resolution.chinaMatch) return overpassByName
+        return null
       }
 
       // Auto routing: 3. China province / city / district
@@ -287,6 +328,7 @@ export async function fetchBoundary(
             ),
           )
           if (datav) return datav
+          if (options.subdivisions) return null
 
           const idx = await tryProvider('staticIndex', () =>
             fetchFromStaticIndex(
@@ -297,6 +339,7 @@ export async function fetchBoundary(
           if (idx) return idx
         }
 
+        if (resolution.chinaMatch?.level === 'district' || options.subdivisions) return null
         const tdt = await tryProvider('tianditu', () =>
           fetchTiandituBoundary({ keyword: resolution.chinaMatch?.name ?? resolution.canonicalQuery }, options),
         )
@@ -322,27 +365,14 @@ export async function fetchBoundary(
 
       // Auto routing: 4. Global (geoBoundaries if iso3 specified -> Nominatim)
       if (options.iso3) {
-        const levelNum =
-          options.level === 'country'
-            ? 0
-            : options.level === 'state' || options.level === 'province'
-              ? 1
-              : options.level === 'city' || options.level === 'county'
-                ? 2
-                : options.level === 'district'
-                  ? 3
-                  : 4
-        const gb = await tryProvider('geoboundaries', () =>
-          fetchGeoBoundaries(
-            { iso3: options.iso3!, admLevel: levelNum, filterName: resolution.canonicalQuery },
-            options,
-          ),
-        )
+        if (options.subdivisions) return null
+        const gb = await tryProvider('geoboundaries', geoBoundary)
         if (gb) return gb
       }
 
+      if (options.subdivisions) return null
       const nom = await tryProvider('nominatim', () =>
-        fetchNominatimBoundary(resolution.canonicalQuery, options),
+        fetchNominatimBoundary(resolution.canonicalQuery, options, { countrycodes: resolution.regionGroup === 'us' ? 'us' : undefined }),
       )
       if (nom) return nom
 
@@ -422,8 +452,13 @@ export async function resolveOsmTarget(options: FetchOsmOptions): Promise<Resolv
 export async function fetchOsm(options: FetchOsmOptions): Promise<ResultEnvelope> {
   const target = await resolveOsmTarget(options)
   const layers = options.layers?.length ? options.layers : (['roads', 'buildings'] as OsmLayerType[])
+  if (layers.some(layer => !['roads', 'buildings', 'pois', 'landuse', 'water', 'all'].includes(layer))) throw new Error('Unsupported OSM layer')
+  const [west, south, east, north] = target.bbox
+  if (!(west >= -180 && west < east && east <= 180 && south >= -90 && south < north && north <= 90)) throw new Error('Expected ordered WGS84 bounds')
   const maxKm2 = options.maxOverpassKm2 ?? 600
   const sourcePref = options.source ?? 'auto'
+  if (!['auto', 'overpass', 'overture'].includes(sourcePref)) throw new Error('Unknown OSM source')
+  if (options.polygonPath && options.outputPath) assertDistinctOutput(options.polygonPath, options.outputPath)
 
   if (
     sourcePref === 'overture' ||
@@ -431,7 +466,7 @@ export async function fetchOsm(options: FetchOsmOptions): Promise<ResultEnvelope
   ) {
     return {
       ok: true,
-      status: 'completed',
+      status: 'engine_required',
       command: 'fetch osm',
       engine: 'ts-core',
       bbox: target.bbox,
@@ -452,8 +487,9 @@ export async function fetchOsm(options: FetchOsmOptions): Promise<ResultEnvelope
     }
   }
 
+  if (options.outputPath && !/\.geojson$|\.json$/i.test(options.outputPath)) throw new Error('Overpass writes GeoJSON; choose .geojson or convert the result separately.')
   const { value: fetched, cacheHit } = await getOrFetchCached(
-    'osm',
+    'osm-v2',
     { bbox: target.bbox, layers },
     () => fetchOverpassLayers({ bbox: target.bbox, layers }, options),
     options,

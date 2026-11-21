@@ -1,6 +1,7 @@
 import path from 'node:path'
 import {
   detectFormatFromPath,
+  assertDistinctOutput,
   readGeoJsonFile,
   runTurfOperator,
   summarizeGeoJson,
@@ -72,6 +73,8 @@ export function registerAnalyzeCommands(program: Command): void {
           let outPath: string | undefined
           if (res.geojson) {
             const target = opts.output ?? input.replace(/(\.geojson|\.json)?$/i, `_${op}.geojson`)
+            assertDistinctOutput(input, target)
+            if (opts.second) assertDistinctOutput(opts.second, target)
             outPath = writeGeoJsonFile(target, res.geojson)
           }
 
@@ -112,9 +115,11 @@ export function registerAnalyzeCommands(program: Command): void {
     .command('sql <query>')
     .description('Execute DuckDB Spatial SQL over local GIS files or remote GeoParquet')
     .option('-o, --output <path>', 'Output file path (.geojson, .gpkg, .parquet, .csv)')
-    .action(async (query: string, opts: { output?: string }) => {
+    .option('--result-crs <crs>', 'CRS of SQL result coordinates when the geometry has no CRS tag')
+    .action(async (query: string, opts: { output?: string; resultCrs?: string }) => {
       const res = await runPythonEngine('sql', {
         sql: query,
+        resultCrs: opts.resultCrs,
         outputPath: opts.output,
       })
       console.log(JSON.stringify(res, null, 2))

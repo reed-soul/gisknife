@@ -16,7 +16,9 @@
 | **GeoParquet** | `.parquet`, `.geoparquet` | Python `uvx` (`duckdb`/`pyogrio`) | Python `uvx` | Cloud-native columnar format |
 | **FlatGeobuf** | `.fgb` | Python `uvx` | Python `uvx` | HTTP Range-request friendly vector |
 | **DXF (CAD)** | `.dxf` | Python `uvx` (OGR) | Python `uvx` (OGR) | Pair with `gisknife crs` for `EPSG:4547` |
-| **GeoTIFF** | `.tif`, `.tiff` | Python `uvx` (`[raster]`) | Python `uvx` (`[raster]`) | Requires `gisknife-engine[raster]` extra |
+| **GeoTIFF** | `.tif`, `.tiff` | Metadata via `inspect` and `rasterio` | Not supported | CLI requests the raster extra on demand |
+
+GPX supports waypoints and tracks, not polygons or null geometries. A MultiPoint expands to multiple waypoints: `inputFeatureCount` counts input features, `featureCount` counts the actual serialized result. DXF does not preserve arbitrary GIS attributes or reliably encode a CRS; prefer GPKG for a lossless GIS handoff. CSV rows with blank coordinates are not points at zero. When both source and appended columns exist, the file converter prefers `wgs84_lon,wgs84_lat` over `lon,lat`.
 
 ## Commands
 

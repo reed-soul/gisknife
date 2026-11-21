@@ -14,7 +14,7 @@ Lifecycle: starts `127.0.0.1:<random-port>` → opens interactive MapLibre GL pa
 
 ## 2. Visual QA Preview (`gisknife preview`)
 
-Generates a single self-contained HTML file with MapLibre GL JS, layer toggles, click-to-inspect attribute popups, and a CRS/feature-count status badge:
+Embeds the layer in one HTML file. MapLibre and OSM basemap tiles require network access; this is not an offline viewer. Share the HTML only if you may share its embedded features and properties:
 ```bash
 gisknife preview ./output.geojson -o ./output_preview.html --open
 ```
@@ -34,11 +34,11 @@ Registered tools (`@gisknife/mcp`):
 
 ## 4. A2UI 1.0 + AG-UI + Vercel UI SDK (`@gisknife/a2ui-catalog`)
 
-For web/mobile copilots (including `gis.taoliapp.com` L3 AI Copilot):
-- **A2UI 1.0**: Declarative JSON surface messages (`createSurface`, `updateComponents`, `updateDataModel`, `callAgentFunction`) strictly typed via Zod schemas (`MapBBoxPicker`, `CrsDisambiguator`, `PlaceDisambiguator`, `GeoSummaryCard`, `LayerQaReport`, `ExportDeliveryCard`).
+For the candidate web workbench and compatible renderers:
+- **A2UI 1.0**: A complete `createSurface` renders one of six widgets (`MapBBoxPicker`, `CrsDisambiguator`, `PlaceDisambiguator`, `GeoSummaryCard`, `LayerQaReport`, `ExportDeliveryCard`); typed decisions use `callAgentFunction`. Incremental updates are not consumed by this renderer.
 - **AG-UI**: Maps `gisknife` execution lifecycle to standard `@ag-ui/core` events (`RunStarted`, `StepStarted`, `StateDelta`, `CustomEvent` carrying A2UI payloads, `RunFinished`).
 - **Vercel UI SDK (`@ui-sdk/core`)**: Headless accessible UI behavior contracts so the same GIS components render in Vue 3, React, or Web Components.
 
 ## 5. WebMCP & `gis.taoliapp.com` Workbench Handoff (`@gisknife/webmcp-bridge`)
 
-When a task needs heavy visual cartographic layout, 3D Cesium globe rendering, or chainable `#wf=` DAG editing, generate a handoff URL to `https://gis.taoliapp.com/#wf=...` using `buildWorkbenchHandoffUrl()`. Remember: **never upload user files to a server**; pass lightweight recipe specs or let users open local files directly in the browser workbench.
+Use `gisknife handoff centroid`, `bbox`, or `buffer --distance 500`. The URL contains a recipe only. A compatible workflow page keeps the selected local file in the browser. Browser `fetch_boundary` uses Nominatim, `fetch_osm` supports small boxes for roads/buildings, and export downloads the current GeoJSON result with user confirmation. CLI Overture and arbitrary GIS file export are not browser fetch tools. See `docs/release/0.1.0.md` in the repository for tested hosts.

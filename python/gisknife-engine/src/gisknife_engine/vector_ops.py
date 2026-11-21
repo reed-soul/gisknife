@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import math
 import tempfile
 import zipfile
 from pathlib import Path
@@ -205,6 +206,17 @@ def analyze_vector(
     gdf = read_vector_smart(input_path)
     warnings: list[dict[str, Any]] = []
     orig_crs = gdf.crs
+    unit_metres = 1.0
+    if op in ('measure', 'buffer'):
+        if not orig_crs or not (orig_crs.is_projected or orig_crs.is_geographic):
+            raise ValueError('Metric operations require a known horizontal CRS')
+        if orig_crs.is_projected:
+            axes = orig_crs.axis_info[:2]
+            if len(axes) != 2 or any(not axis.unit_name or axis.unit_name.lower() == 'unknown' for axis in axes):
+                raise ValueError('Unknown projected axis units')
+            unit_metres = axes[0].unit_conversion_factor
+            if not math.isfinite(unit_metres) or unit_metres <= 0 or unit_metres != axes[1].unit_conversion_factor:
+                raise ValueError('Unsupported projected axis units')
 
     if op == "buffer":
         if orig_crs is None:
@@ -222,7 +234,7 @@ def analyze_vector(
             out_gdf = projected.to_crs(orig_crs)
         else:
             out_gdf = gdf.copy()
-            out_gdf[out_gdf.geometry.name] = out_gdf.geometry.buffer(distance_meters)
+            out_gdf[out_gdf.geometry.name] = out_gdf.geometry.buffer(distance_meters / unit_metres)
     elif op == "simplify":
         out_gdf = gdf.copy()
         out_gdf[out_gdf.geometry.name] = out_gdf.geometry.simplify(tolerance, preserve_topology=True)
@@ -234,8 +246,8 @@ def analyze_vector(
             metric = gdf.to_crs(utm) if orig_crs else gdf
         else:
             metric = gdf
-        areas = metric.geometry.area
-        lengths = metric.geometry.length
+        areas = metric.geometry.area * unit_metres ** 2
+        lengths = metric.geometry.length * unit_metres
         return summarize_gdf(
             gdf,
             command="analyze measure",

@@ -38,18 +38,19 @@ export function getPreviewAppHtml(): string {
       map.addSource('qa', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
       map.addLayer({ id: 'qa-fill', type: 'fill', source: 'qa', paint: { 'fill-color': '#0ea5e9', 'fill-opacity': 0.28 } });
       map.addLayer({ id: 'qa-line', type: 'line', source: 'qa', paint: { 'line-color': '#38bdf8', 'line-width': 2 } });
+      map.addLayer({ id: 'qa-point', type: 'circle', source: 'qa', filter: ['==', ['geometry-type'], 'Point'], paint: { 'circle-color': '#38bdf8' } });
       window.gisknifeMcpHost.initialize().catch(() => {});
     });
 
     window.gisknifeMcpHost.onNotification((msg) => {
       if (msg.method === 'ui/notifications/tool-result' && msg.params) {
-        const p = msg.params;
+        const p = msg.params.structuredContent || {};
         if (p.bbox && p.bbox.length === 4) {
           document.getElementById('meta').textContent = (p.featureCount || 0) + ' features · ' + (p.crs || 'EPSG:4326');
           map.fitBounds([[p.bbox[0], p.bbox[1]], [p.bbox[2], p.bbox[3]]], { padding: 30 });
         }
-        if (p.geojson && map.getSource('qa')) {
-          map.getSource('qa').setData(p.geojson);
+        if (msg.params._meta?.geojson && map.getSource('qa')) {
+          map.getSource('qa').setData(msg.params._meta.geojson);
         }
       }
     });

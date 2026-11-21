@@ -26,17 +26,17 @@ function defaultOutPath(prefix: string, ext = 'geojson'): string {
 export function registerFetchCommand(program: Command): void {
   const fetchCmd = program
     .command('fetch')
-    .description('Fetch administrative boundaries (Global, US, China ADM1-ADM4) and OSM / Overture vector data')
+    .description('Fetch online boundaries and OSM / Overture data (Beta; availability and coverage depend on providers)')
 
   fetchCmd
     .command('boundary <place>')
-    .description('Fetch administrative boundary GeoJSON by place name')
+    .description('Fetch administrative boundary GeoJSON by place name (Beta; verify coverage)')
     .option('-o, --output <path>', 'Output GeoJSON file path')
     .option('-l, --level <level>', 'Admin level: country|state|province|city|district|street|county')
     .option('--subdivisions', 'Fetch child subdivisions (e.g., districts of Foshan)', false)
     .option('--to-wgs84', 'Convert GCJ-02 results (e.g., DataV) to WGS84', true)
     .option('--no-to-wgs84', 'Keep native GCJ-02 coordinates when fetched from DataV')
-    .option('--source <source>', 'Provider preference: auto|datav|overpass|nominatim|tiger|geoboundaries|index', 'auto')
+    .option('--source <source>', 'Provider: auto|datav|overpass|nominatim|tiger|geoboundaries|index|amap|tianditu', 'auto')
     .option('--iso3 <code>', 'ISO3 country code hint for geoBoundaries (e.g. USA, CHN, FRA)')
     .option('--pick-first', 'Auto-select first candidate if place name is ambiguous', false)
     .option('--no-cache', 'Bypass local disk cache')
@@ -71,6 +71,7 @@ export function registerFetchCommand(program: Command): void {
           outputPath: targetPath,
         })
 
+        if (!res.ok) throw new Error(res.error ?? 'Boundary fetch failed')
         if (opts.stdout && res.data) {
           console.log(JSON.stringify(res.data, null, 2))
           return
@@ -81,7 +82,7 @@ export function registerFetchCommand(program: Command): void {
 
   fetchCmd
     .command('osm')
-    .description('Fetch OpenStreetMap / Overture features by place, BBox, polygon, or interactive map pick')
+    .description('Fetch OpenStreetMap / Overture features by place, BBox, polygon, or map pick (Beta; verify coverage)')
     .option('--place <name>', 'Place or informal region name (e.g. "Silicon Valley")')
     .option('--bbox <minLon,minLat,maxLon,maxLat>', 'Bounding box in WGS84')
     .option('--polygon <path>', 'Path to GeoJSON polygon used to derive bounding box')
@@ -141,34 +142,15 @@ export function registerFetchCommand(program: Command): void {
 
         const routeData = res.data as { route?: string; bbox?: BBox; layers?: string[] } | undefined
         if (routeData?.route === 'overture-s3') {
+          if (opts.stdout) throw new Error('Overture requires a file output; omit --stdout.')
           const outFile = targetPath ?? defaultOutPath(`overture_${opts.place ?? 'area'}`, 'parquet')
-          try {
-            const heavy = await runPythonEngine('overture_fetch', {
-              bbox: routeData.bbox,
-              layers: routeData.layers,
-              outputPath: outFile,
-            })
-            console.log(JSON.stringify(heavy, null, 2))
-            return
-          } catch (err) {
-            console.log(
-              JSON.stringify(
-                {
-                  ...res,
-                  warnings: [
-                    ...(res.warnings ?? []),
-                    {
-                      code: 'PYTHON_ENGINE_UNAVAILABLE',
-                      message: err instanceof Error ? err.message : String(err),
-                    },
-                  ],
-                },
-                null,
-                2,
-              ),
-            )
-            return
-          }
+          const heavy = await runPythonEngine('overture_fetch', {
+            bbox: routeData.bbox,
+            layers: routeData.layers,
+            outputPath: outFile,
+          })
+          console.log(JSON.stringify(heavy, null, 2))
+          return
         }
 
         if (opts.stdout && res.data) {

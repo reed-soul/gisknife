@@ -39,7 +39,7 @@ describe('@gisknife/picker', () => {
 
     const submitRes = await fetch(`${running.url}/submit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: running.url },
       body: JSON.stringify(payload),
     })
     expect(submitRes.status).toBe(200)

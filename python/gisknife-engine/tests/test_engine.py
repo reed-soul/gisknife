@@ -4,7 +4,7 @@ from pathlib import Path
 
 import geopandas as gpd
 import pytest
-from shapely.geometry import Point, Polygon
+from shapely.geometry import LineString, Point, Polygon
 
 from gisknife_engine.cli import dispatch_rpc, get_capabilities
 
@@ -16,6 +16,51 @@ def test_capabilities_probe():
     assert caps["capabilities"]["geopandas"] is True
     assert caps["capabilities"]["pyproj"] is True
     assert caps["capabilities"]["shapely"] is True
+
+
+def test_us_survey_feet_are_not_metres(tmp_path):
+    source = tmp_path / 'feet.gpkg'
+    line = LineString([(1000000, 200000), (1001000, 200000)])
+    gpd.GeoDataFrame(geometry=[line], crs=2263).to_file(source)
+    params = {'analysisOp': 'measure', 'inputPath': str(source)}
+    result = dispatch_rpc({'op': 'analyze', 'params': params})
+    assert result['measure']['totalLengthMeters'] == pytest.approx(304.8, abs=0.01)
+    target = tmp_path / 'buffer.gpkg'
+    dispatch_rpc({'op': 'analyze', 'params': {**params, 'analysisOp': 'buffer', 'distanceMeters': 304.8, 'outputPath': str(target)}})
+    assert gpd.read_file(target).total_bounds[0] == pytest.approx(999000, abs=0.01)
+    sql_out = tmp_path / 'sql.gpkg'
+    result = dispatch_rpc({'op': 'sql', 'params': {'sql': f"select geom from st_read('{source}')", 'outputPath': str(sql_out)}})
+    assert gpd.read_file(sql_out).crs.to_epsg() == 2263
+    assert result['featureCount'] == 1
+    with pytest.raises(ValueError, match='no CRS'):
+        dispatch_rpc({'op': 'sql', 'params': {'sql': 'select ST_Point(1000,2000) as geom', 'outputPath': str(sql_out)}})
+    assert gpd.read_file(sql_out).crs.to_epsg() == 2263
+
+
+def test_square_feet_and_unlabelled_input(tmp_path):
+    square = Polygon([(1000000, 200000), (1001000, 200000), (1001000, 201000), (1000000, 201000)])
+    source = tmp_path / 'square.gpkg'
+    gpd.GeoDataFrame(geometry=[square], crs=2263).to_file(source)
+    result = dispatch_rpc({'op': 'analyze', 'params': {'analysisOp': 'measure', 'inputPath': str(source)}})
+    assert result['measure']['totalAreaSqMeters'] == pytest.approx((1000 * 1200 / 3937) ** 2, abs=0.01)
+    unknown = tmp_path / 'unknown.parquet'
+    gpd.GeoDataFrame(geometry=[square]).to_parquet(unknown)
+    with pytest.raises(ValueError, match='known horizontal CRS'):
+        dispatch_rpc({'op': 'analyze', 'params': {'analysisOp': 'measure', 'inputPath': str(unknown)}})
+
+
+def test_gbk_shapefile_and_dxf_geometry(tmp_path):
+    source = tmp_path / 'gbk.shp'
+    points = gpd.GeoDataFrame({'name': ['南山']}, geometry=[Point(114, 22)], crs=4326)
+    points.to_file(source, driver='ESRI Shapefile', encoding='GBK')
+    out = tmp_path / 'recovered.geojson'
+    dispatch_rpc({'op': 'convert', 'params': {'inputPath': str(source), 'outputPath': str(out)}})
+    assert gpd.read_file(out).iloc[0]['name'] == '南山'
+    cad = tmp_path / 'point.dxf'
+    geometry_only = tmp_path / 'point.geojson'
+    points[['geometry']].to_file(geometry_only)
+    dispatch_rpc({'op': 'convert', 'params': {'inputPath': str(geometry_only), 'outputPath': str(cad)}})
+    assert gpd.read_file(cad).geometry.iloc[0].equals(Point(114, 22))
 
 
 def test_epsg4547_to_wgs84_and_heavy_formats_roundtrip(tmp_path: Path):

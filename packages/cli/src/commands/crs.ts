@@ -1,6 +1,7 @@
 import path from 'node:path'
 import {
   convertCsvFile,
+  assertDistinctOutput,
   convertPoints,
   parseCoordinateInput,
   readGeoJsonFile,
@@ -87,6 +88,7 @@ export function registerCrsCommand(program: Command): void {
 
         if (opts.file) {
           const outPath = opts.output ?? opts.file.replace(/(\.geojson|\.json)?$/i, '_reprojected.geojson')
+          assertDistinctOutput(opts.file, outPath)
           const fc = readGeoJsonFile(opts.file)
           const res = reprojectGeoJson(fc, opts.from, opts.to, {
             swapInputAxes: opts.swapAxes,
@@ -124,6 +126,9 @@ export function registerCrsCommand(program: Command): void {
           autoFixSniffed: opts.autoFix,
           precision,
         })
+        if (result.points.some(point => !point.output.every(Number.isFinite))) {
+          throw new Error(result.warnings.map(warning => warning.message).join(' ') || 'Invalid projection result')
+        }
         console.log(
           JSON.stringify(
             {

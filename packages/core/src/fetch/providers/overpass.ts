@@ -44,7 +44,8 @@ export async function queryOverpassWithMirrors(
       if (!res.ok) {
         errors.push(`${mirror}: HTTP ${res.status} ${res.statusText}`)
       } else {
-        const json = (await res.json()) as OverpassResponse
+        const json = (await res.json()) as OverpassResponse & { remark?: string }
+        if (json?.remark) throw new Error(`Incomplete Overpass response: ${json.remark}`)
         if (json && Array.isArray(json.elements)) {
           return json
         }
@@ -68,6 +69,7 @@ export async function fetchOverpassSubdivisions(
   params: {
     bbox?: BBox
     areaName?: string
+    parentAdcode?: string
     adminLevels?: string[]
     timeoutSec?: number
   },
@@ -77,7 +79,11 @@ export async function fetchOverpassSubdivisions(
   const timeoutSec = params.timeoutSec ?? 25
 
   let ql: string
-  if (params.bbox) {
+  if (params.parentAdcode) {
+    if (!/^\d{6}$/.test(params.parentAdcode)) throw new Error('Expected a six-digit parent adcode')
+    const codePattern = `^${params.parentAdcode}[0-9]{3,6}$`
+    ql = `[out:json][timeout:${timeoutSec}];(relation["ref:admin:CN:nbs"~"${codePattern}"]["boundary"="administrative"]["admin_level"~"^(${levels})$"];relation["ref:admin:CN:mca"~"${codePattern}"]["boundary"="administrative"]["admin_level"~"^(${levels})$"];);out geom;`
+  } else if (params.bbox) {
     const bb = toOverpassBBox(params.bbox)
     ql = `[out:json][timeout:${timeoutSec}];
 relation["boundary"="administrative"]["admin_level"~"^(${levels})$"](${bb});

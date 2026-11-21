@@ -24,6 +24,7 @@ export function getPickerAppHtml(): string {
     <strong>gisknife Area Picker (MCP App)</strong>
     <div style="display:flex;gap:6px;">
       <button id="clear">Clear</button>
+      <button id="cancel">Cancel selection</button>
       <button id="send" class="primary">Send BBox to Agent</button>
     </div>
   </div>
@@ -57,8 +58,8 @@ export function getPickerAppHtml(): string {
     });
 
     window.gisknifeMcpHost.onNotification((msg) => {
-      if (msg.method === 'ui/notifications/tool-input' && msg.params && msg.params.bbox) {
-        const bb = msg.params.bbox;
+      if (msg.method === 'ui/notifications/tool-input' && msg.params?.arguments?.initialBbox) {
+        const bb = msg.params.arguments.initialBbox;
         map.fitBounds([[bb[0], bb[1]], [bb[2], bb[3]]], { padding: 30 });
       }
     });
@@ -92,10 +93,18 @@ export function getPickerAppHtml(): string {
       if (map.getSource('box')) map.getSource('box').setData({ type: 'FeatureCollection', features: [] });
     };
 
+    document.getElementById('cancel').onclick = async () => {
+      try {
+        await window.gisknifeMcpHost.sendMessage('Area selection cancelled; do not start an extraction.');
+        document.getElementById('clear').click(); status.textContent = 'Cancellation sent to host';
+      } catch (err) { status.textContent = String(err); }
+    };
     document.getElementById('send').onclick = async () => {
       if (!bbox) return;
-      await window.gisknifeMcpHost.sendMessage('Selected BBox: ' + JSON.stringify(bbox)).catch(() => {});
-      status.textContent = 'Sent BBox to host agent';
+      try {
+        await window.gisknifeMcpHost.sendMessage('Selected BBox: ' + JSON.stringify(bbox));
+        status.textContent = 'Sent BBox to host agent';
+      } catch (err) { status.textContent = String(err); }
     };
   </script>
 </body>

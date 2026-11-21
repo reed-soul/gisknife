@@ -1,4 +1,5 @@
 import { EventType } from '@ag-ui/core'
+import { AgentToRendererMessageSchema, RendererToAgentMessageSchema } from '@a2ui/web_core/v1_0'
 import { describe, expect, it } from 'vitest'
 import {
   A2UI_CATALOG_ID,
@@ -13,7 +14,6 @@ describe('@gisknife/a2ui-catalog', () => {
   it('validates A2UI 1.0 GIS catalog surfaces and builds RPC calls', () => {
     const surface = createGisSurface({
       surfaceId: 'crs-check-1',
-      rootComponentId: 'crs-dialog',
       component: 'CrsDisambiguator',
       props: {
         declaredCrs: 'EPSG:4547',
@@ -24,14 +24,16 @@ describe('@gisknife/a2ui-catalog', () => {
       },
     })
 
-    expect(surface.a2uiVersion).toBe(A2UI_PROTOCOL_VERSION)
+    expect(surface.version).toBe(A2UI_PROTOCOL_VERSION)
+    expect(AgentToRendererMessageSchema.parse(surface)).toEqual(surface)
     expect(surface.createSurface?.catalogId).toBe(A2UI_CATALOG_ID)
-    expect(surface.updateComponents?.[0].component).toBe('CrsDisambiguator')
+    expect(surface.createSurface.components[0]).toMatchObject({ id: 'root', component: 'CrsDisambiguator' })
 
     const rpc = buildAgentRpcCall('crs-check-1', 'gisknife.confirmCrsChoice', {
       useCrs: 'EPSG:4526',
     })
-    expect(rpc.callAgentFunction?.name).toBe('gisknife.confirmCrsChoice')
+    expect(rpc.callAgentFunction?.callFunction['@call']).toBe('gisknife.confirmCrsChoice')
+    expect(RendererToAgentMessageSchema.parse(rpc)).toEqual(rpc)
   })
 
   it('streams A2UI frames inside AG-UI @ag-ui/core lifecycle events and maps @ui-sdk/core specs', () => {
@@ -41,7 +43,6 @@ describe('@gisknife/a2ui-catalog', () => {
     const custom = emitter.a2uiSurface(
       createGisSurface({
         surfaceId: 'summary-1',
-        rootComponentId: 'card',
         component: 'GeoSummaryCard',
         props: {
           title: 'Nanshan Streets',

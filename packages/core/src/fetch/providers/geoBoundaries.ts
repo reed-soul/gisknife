@@ -42,11 +42,10 @@ export async function fetchGeoBoundaries(
     const q = params.filterName.trim().toLowerCase()
     const filtered = features.filter((f) => {
       const name = String(f.properties?.shapeName ?? f.properties?.NAME ?? '').toLowerCase()
-      return name.includes(q)
+      return name === q
     })
-    if (filtered.length > 0) {
-      features = filtered
-    }
+    if (!filtered.length) return null
+    features = filtered
   }
 
   return {

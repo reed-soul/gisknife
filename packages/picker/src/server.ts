@@ -25,6 +25,17 @@ export interface PickerServerOptions {
   timeoutMs?: number
 }
 
+function validResult(value: PickerResult): boolean {
+  if (!value || typeof value.cancelled !== 'boolean' || !['bbox', 'polygon', 'file'].includes(value.mode)) return false
+  if (value.cancelled) return true
+  if (value.uploadedFile) return value.mode === 'file' && typeof value.uploadedFile.name === 'string' && typeof value.uploadedFile.content === 'string'
+  const box = value.bbox
+  if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite) || !(box[0] >= -180 && box[0] < box[2] && box[2] <= 180 && box[1] >= -90 && box[1] < box[3] && box[3] <= 90)) return false
+  if (value.mode === 'file' || value.geometry?.type !== 'Polygon') return false
+  const rings = value.geometry.coordinates
+  return Array.isArray(rings) && rings.length === 1 && rings.every(ring => Array.isArray(ring) && ring.length >= 4 && ring.every(point => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite) && point[0] >= box[0] && point[0] <= box[2] && point[1] >= box[1] && point[1] <= box[3]) && ring[0][0] === ring.at(-1)![0] && ring[0][1] === ring.at(-1)![1])
+}
+
 export interface RunningPickerServer {
   url: string
   port: number
@@ -63,6 +74,8 @@ export async function startPickerServer(
   })
 
   const server = http.createServer((req, res) => {
+    const host = `127.0.0.1:${req.socket.localPort}`
+    if (req.headers.host !== host) { res.writeHead(403).end(); return }
     if (req.method === 'GET' && (req.url === '/' || req.url?.startsWith('/?'))) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
       res.end(html)
@@ -70,12 +83,21 @@ export async function startPickerServer(
     }
 
     if (req.method === 'POST' && req.url === '/submit') {
+      if (req.headers.origin !== `http://${host}`) { res.writeHead(403).end(); return }
+      if (req.headers['content-type']?.split(';')[0] !== 'application/json') { res.writeHead(415).end(); return }
       const chunks: Buffer[] = []
-      req.on('data', (c: Buffer) => chunks.push(c))
+      let bytes = 0
+      req.on('data', (chunk: Buffer) => {
+        bytes += chunk.length
+        if (bytes <= 16 * 1024 * 1024) chunks.push(chunk)
+        else if (!res.writableEnded) { chunks.length = 0; res.writeHead(413).end() }
+      })
       req.on('end', () => {
+        if (res.writableEnded) return
         try {
           const raw = Buffer.concat(chunks).toString('utf8')
           const parsed = JSON.parse(raw) as PickerResult
+          if (!validResult(parsed)) throw new Error('Invalid selection')
           res.writeHead(200, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ ok: true }))
 
@@ -85,14 +107,9 @@ export async function startPickerServer(
             resolveResult(parsed)
           }
           server.close()
-        } catch (err) {
+        } catch {
           res.writeHead(400, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ ok: false, error: 'Invalid JSON payload' }))
-          if (!settled) {
-            settled = true
-            if (timeoutHandle) clearTimeout(timeoutHandle)
-            rejectResult(err instanceof Error ? err : new Error(String(err)))
-          }
+          res.end(JSON.stringify({ ok: false, error: 'Invalid selection' }))
         }
       })
       return

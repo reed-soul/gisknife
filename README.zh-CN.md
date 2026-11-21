@@ -4,23 +4,25 @@
 
 **面向 AI 时代的泛 GIS 瑞士军刀** —— 单入口 Agent Skill + 双引擎 CLI（Node/TS + Python `uvx`）+ MCP Apps + A2UI 1.0 + WebMCP。
 
-只需要安装**这一个 Skill**，就能让 AI Agent（Claude Code、Codex、Cursor、Antigravity 等）直接帮你完成取数、坐标纠偏、CSV 批量转写、格式互转、空间 SQL、拓扑体检与地图可视化验收，无需折腾 Conda/GDAL 环境，也不会撑爆大模型上下文。
+它让 AI 助手在本机交付 GIS 文件，而不是把整份空间数据塞进对话。Skill 是操作说明；真正取数、转换和检查文件的是另装的 CLI。**0.1.0 是本地候选版，尚未公开发布。** 安装实测、上线条件见[发布验收单](docs/release/0.1.0.md)。
+
+首发以处理已有文件为主：坐标转换、格式转换、检查和空间分析。**联网取数为 Beta（试用）功能。** 能否取到数据、能取到哪些范围，由数据源决定。复用或对外分发前，请核对来源和使用条款。
 
 ---
 
 ## 核心特性
 
-- **开箱即用出文件，不只是“纸上谈兵”**：精简的 [`SKILL.md`](./SKILL.md) 路由器 + 渐进披露文档，直接驱动内置双计算引擎。
-- **Node/TS 极速主干 + Python `uvx` 重算力**：
-  - **Node/TS（`@gisknife/core`）**：毫秒级处理坐标与 CSV 批量转换、中国测绘防踩坑嗅探、全球/国内多源边界与 OSM 拉取、轻量格式互转、Turf 空间分析与单文件 HTML 地图预览。
-  - **Python `uvx`（`python/gisknife-engine`）**：自动接管 Shapefile（自动修 GBK `.cpg` 乱码并打包 `.zip`）、GeoPackage、GeoParquet、FlatGeobuf、DXF、Overture S3 远程按框裁剪、DuckDB Spatial SQL 以及可选 GeoTIFF 栅格。
+- **从指令到 GIS 文件**：[`SKILL.md`](./SKILL.md) 引导 AI 助手调用 CLI，实际转换和处理文件。
+- **Node 和 Python 双引擎**：
+  - **Node/TS（`@gisknife/core`）**：坐标与 CSV 批量转换、中国测绘坐标检查、轻量格式互转、Turf 空间分析、生成单文件 HTML 地图预览。
+  - **Python（`python/gisknife-engine`）**：处理 Shapefile（包括 GBK `.cpg` 和 `.zip`）、GeoPackage、GeoParquet、FlatGeobuf、DXF、DuckDB Spatial SQL，以及可选的 GeoTIFF 元数据检查。Overture 按范围取数也使用该引擎，属于 Beta 功能。
 - **GIS 防静默翻车内核**：
   - **大几何不进上下文**：永远把结果落盘，仅向 Agent 返回精简 JSON 摘要（文件路径、CRS、要素数、BBox、警告与合规声明）。
   - **中国测绘高频坑自动嗅探**：精准识别 `EPSG:4547`（不带 38 带号，6 位东坐标）vs `EPSG:4526`（带 38 带号，8 位东坐标）混用、测量习惯 X=北/Y=东轴反写、以及 WGS84 / CGCS2000 / GCJ-02 / BD-09 偏移提醒。
   - **禁止在经纬度下裸算米级缓冲区**：自动采用测地线或投影转换。
 - **默认零浏览器，只在必要时唤起交互**：
   - 需要用户手绘框选（如“硅谷”）或拖入本地文件时，按客户端自动选用 **MCP Apps（`ui://` 内嵌地图）** 或 **一次性 `127.0.0.1` 选区页（`gisknife pick`）**。
-  - 提供 **A2UI 1.0 + AG-UI + Vercel UI SDK（`@ui-sdk/core`）** 组件协议及 **WebMCP** 桥接，可一键将复杂排版与 3D 预览交给 [gis.taoliapp.com](https://gis.taoliapp.com)（全程纯本地，文件不上传）。
+  - `gisknife handoff centroid|bbox|buffer` 生成只含步骤的工作流链接。浏览器中再选本地文件；候选工作台已在本机测试，尚未部署到线上。底图、公开数据源和首次安装需要联网。
 
 ---
 
@@ -29,12 +31,14 @@
 ### 1. 作为 Agent Skill 安装
 
 ```bash
-npx skills add reed-soul/gisknife
+npx skills add . --agent codex  # 在当前源码目录安装说明，不会安装 CLI
 ```
 
 ### 2. 本地源码构建与双引擎检查
 
-前置依赖：Node.js 20+、`pnpm`、以及 [`uv`](https://docs.astral.sh/uv/)（用于自动管理 Python 3.12 重算引擎）。
+前置依赖：Node.js 22.12+（源码构建推荐 Node 24）、`pnpm`、以及重算任务需要的 [`uv`](https://docs.astral.sh/uv/)。安装 Skill 只安装指令，不会替用户安装 CLI 或 `uv`。
+
+安装工具、首次准备 Python 引擎或 DuckDB 扩展时可能需要联网。处理已有文件不依赖在线取数；打开预览页仍需联网加载 MapLibre 和底图瓦片。
 
 ```bash
 pnpm install
@@ -49,30 +53,43 @@ node packages/cli/dist/index.js doctor
 
 ---
 
-## 五个高频场景示例
+## 使用示例
+
+示例使用已安装的 `gisknife` 命令。用源码构建的读者可在仓库根目录运行，将 `gisknife` 换成 `node packages/cli/dist/index.js`。
+
+### 处理本地文件
+
+图层示例使用你已有的 `parcels.geojson`：坐标系为 WGS84，几何为面，属性中有 `name` 字段。
 
 ```bash
-# 1. 消歧并获取美国行政边界 + 转 GeoPackage
+# EPSG:4547 单点或 CSV 批量转 WGS84
+gisknife crs convert "500000,2500000" --from EPSG:4547 --to WGS84
+gisknife crs convert --csv survey_4547.csv -o survey_wgs84.csv --from EPSG:4547 --to WGS84
+
+# 转换本地图层，检查几何并生成预览
+gisknife convert ./parcels.geojson -o ./parcels.gpkg
+gisknife qa ./parcels.geojson --fix -o ./parcels_clean.geojson
+gisknife sql "SELECT name, ST_Area_Spheroid(geom) AS area_m2, geom FROM ST_Read('./parcels_clean.geojson')" -o ./areas.geojson
+gisknife preview ./parcels_clean.geojson -o ./parcels_preview.html --open
+```
+
+### 联网取数（Beta）
+
+以下示例需要联网。公共服务可能超时，返回的数据也可能不完整，尤其是街道边界。如何指定数据源、核对结果，见[取数说明](references/fetch.md)。
+
+```bash
+# 确认地点、获取美国行政边界并转为 GeoPackage
 gisknife fetch boundary "Washington"                      # 自动返回州 vs 特区候选供确认
 gisknife fetch boundary "Washington, D.C." -o ./dc.geojson
 gisknife convert ./dc.geojson -o ./dc.gpkg
 
-# 2. 获取中国城市与深圳南山街道级边界
+# 获取中国城市与深圳南山街道级边界
 gisknife fetch boundary "佛山" --subdivisions --to-wgs84 -o ./foshan.geojson
 gisknife fetch boundary "深圳南山区" --level street -o ./nanshan_streets.geojson
 
-# 3. 获取硅谷 OSM 路网与建筑（支持手绘框选）
+# 获取帕洛阿尔托的 OSM 路网与建筑，或硅谷的 Overture 路网
 gisknife fetch osm --bbox "-122.18,37.41,-122.14,37.44" --layers roads,buildings -o ./palo_alto.geojson
 gisknife fetch osm --place "Silicon Valley" --layers roads --source overture -o ./sv_roads.parquet
-
-# 4. EPSG:4547 单点/CSV 批量转 WGS84（自动嗅探带号与 XY 轴反写，保留全部业务列）
-gisknife crs convert "500000,2500000" --from EPSG:4547 --to WGS84
-gisknife crs convert --csv survey_4547.csv -o survey_wgs84.csv --from EPSG:4547 --to WGS84
-
-# 5. 拓扑体检修复、DuckDB Spatial SQL 与交互式 HTML 地图核验
-gisknife qa ./nanshan_streets.geojson --fix -o ./nanshan_clean.geojson
-gisknife sql "SELECT name, ST_Area_Spheroid(geom) AS area_m2, geom FROM ST_Read('./nanshan_clean.geojson')" -o ./areas.geojson
-gisknife preview ./nanshan_clean.geojson -o ./nanshan_preview.html --open
 ```
 
 ---

@@ -27,6 +27,7 @@ export function buildMcpAppBridgeScript(): string {
     const listeners = [];
 
     window.addEventListener('message', (event) => {
+      if (event.source !== window.parent) return;
       const msg = event.data;
       if (!msg || typeof msg !== 'object' || msg.jsonrpc !== '2.0') return;
       if (msg.id !== undefined && pending.has(msg.id)) {
@@ -56,8 +57,9 @@ export function buildMcpAppBridgeScript(): string {
     window.gisknifeMcpHost = {
       initialize: () => request('ui/initialize', {
         appInfo: { name: 'gisknife-mcp-app', version: '0.1.0' },
+        appCapabilities: {},
         protocolVersion: '2026-01-26'
-      }),
+      }).then((result) => { notify('ui/notifications/initialized', {}); return result; }),
       callTool: (name, args) => request('tools/call', { name, arguments: args || {} }),
       sendMessage: (text) => request('ui/message', { role: 'user', content: [{ type: 'text', text }] }),
       onNotification: (fn) => listeners.push(fn),

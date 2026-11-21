@@ -19,6 +19,19 @@ afterEach(() => {
 })
 
 describe('Fetch disambiguation, Overpass stitching & multi-source router', () => {
+  it('does not silently replace the requested source or parent a district lookup', async () => {
+    const calls: string[] = []
+    const config = { noCache: true, fetchImpl: async (url: URL | string | Request) => { calls.push(String(url)); return new Response('{}', { status: 404 }) } }
+    expect((await fetchBoundary('佛山', { ...config, source: 'geoboundaries' })).ok).toBe(false)
+    expect((await fetchBoundary('Paris', { ...config, source: 'datav' })).ok).toBe(false)
+    await expect(fetchBoundary('深圳市未知区', config)).rejects.toThrow('parent district')
+    expect(calls).toEqual([])
+  })
+
+  it('rejects the parent returned instead of requested children', async () => {
+    const fetchImpl = async () => Response.json({ features: [{ properties: { adcode: '440600' } }] })
+    expect((await fetchBoundary('佛山', { source: 'datav', subdivisions: true, noCache: true, fetchImpl })).ok).toBe(false)
+  })
   it('disambiguates ambiguous Washington and resolves informal Silicon Valley & China adcodes', () => {
     const ambig = resolvePlaceIntent('Washington')
     expect(ambig.status).toBe('disambiguation_required')
