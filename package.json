@@ -1,6 +1,6 @@
 {
   "name": "gisknife-monorepo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "The AI-native GIS Swiss Army Knife — Agent Skill + Dual-Engine CLI + MCP Apps + A2UI 1.0 + WebMCP",

@@ -53,7 +53,7 @@ export async function fetchJsonWithTimeout(
       ...init,
       signal: controller.signal,
       headers: {
-        'User-Agent': 'gisknife/0.1.0 (+https://github.com/reed-soul/gisknife)',
+        'User-Agent': 'gisknife/0.2.0 (+https://github.com/reed-soul/gisknife)',
         ...(init.headers ?? {}),
       },
     })

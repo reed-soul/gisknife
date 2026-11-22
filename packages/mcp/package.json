@@ -1,6 +1,6 @@
 {
   "name": "@gisknife/mcp",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Gisknife Model Context Protocol (MCP) server with MCP Apps (ui://) interactive GIS widgets.",
   "license": "MIT",
   "type": "module",
@@ -18,10 +18,14 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b && node -e \"require('fs').chmodSync('dist/index.js', 0o755)\"",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@gisknife/core": "workspace:*",

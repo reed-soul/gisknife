@@ -1,6 +1,6 @@
 {
   "name": "@gisknife/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pure TypeScript GIS engine — CRS (EPSG + CGCS2000/GCJ-02/BD-09 + sniffer), multi-source boundary & OSM fetcher, format conversion, geometry QA, Turf spatial ops, and HTML map preview.",
   "license": "MIT",
   "type": "module",
@@ -16,10 +16,14 @@
     "dist",
     "data"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "tsc -b"
   },
   "dependencies": {
     "@tmcw/togeojson": "^7.1.4",

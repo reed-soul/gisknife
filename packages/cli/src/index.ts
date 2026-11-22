@@ -21,7 +21,7 @@ export function buildProgram(): Command {
     .description(
       'The AI-native GIS Swiss Army Knife — CRS, Format Convert, Spatial SQL, QA, Picker, MCP & Online Fetch (Beta)',
     )
-    .version('0.1.0')
+    .version('0.2.0')
 
   registerDoctorCommand(program)
   registerCrsCommand(program)

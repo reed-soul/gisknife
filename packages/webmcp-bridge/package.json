@@ -1,6 +1,6 @@
 {
   "name": "@gisknife/webmcp-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "WebMCP (document.modelContext) tool descriptors & gis.taoliapp.com #wf= workbench handoff bridge.",
   "license": "MIT",
   "type": "module",
@@ -15,10 +15,14 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepublishOnly": "tsc -b"
   },
   "dependencies": {
     "zod": "^4.6.7"

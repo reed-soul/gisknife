@@ -38,7 +38,7 @@ export async function queryOverpassWithMirrors(
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-          'User-Agent': 'gisknife/0.1.0 (+https://github.com/reed-soul/gisknife)',
+          'User-Agent': 'gisknife/0.2.0 (+https://github.com/reed-soul/gisknife)',
         },
         body: `data=${encodeURIComponent(ql)}`,
       })

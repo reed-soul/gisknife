@@ -14,7 +14,7 @@ export interface CreateGisMcpServerOptions {
 export function createGisMcpServer(options: CreateGisMcpServerOptions = {}): McpServer {
   const server = new McpServer({
     name: 'gisknife',
-    version: '0.1.0',
+    version: '0.2.0',
   })
   registerGisMcpCapabilities(server, { heavyRunner: options.heavyRunner })
   return server

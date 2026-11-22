@@ -4,7 +4,7 @@ English | [简体中文](./README.zh-CN.md)
 
 **The AI-native GIS Swiss Army Knife** — One Agent Skill + Dual-Engine CLI (Node/TS + Python `uvx`) + MCP Apps + A2UI 1.0 + WebMCP.
 
-The Skill teaches an agent to use a separately installed CLI. Most operations return a summary and a local file rather than sending a dataset to the model. **0.1.0 is a local release candidate, not a published package.** See the [release decision and installation matrix](docs/release/0.1.0.md).
+The Skill teaches an agent to use a separately installed CLI. Most operations return a summary and a local file rather than sending a dataset to the model. **Current release: 0.2.0** (npm CLI `gisknife` & `@gisknife/*` packages paired with PyPI `gisknife-engine==0.1.0`). See [0.2.0 release notes](docs/release/0.2.0.md) and [0.1.0 release acceptance](docs/release/0.1.0.md).
 
 The first release focuses on processing files you already have: coordinate transforms, format conversion, inspection, and spatial analysis. **Online data fetching is Beta.** Availability and coverage depend on the provider. Check the source and its terms before reusing or distributing fetched data.
 
