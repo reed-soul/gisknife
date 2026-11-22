@@ -12,6 +12,7 @@ import { registerInspectCommands } from './commands/inspect.js'
 import { registerMcpCommand } from './commands/mcp.js'
 import { registerPickCommand } from './commands/pick.js'
 import { registerPreviewCommand } from './commands/preview.js'
+import { registerRoadnetCommand } from './commands/roadnet.js'
 
 export function buildProgram(): Command {
   const program = new Command()
@@ -30,6 +31,7 @@ export function buildProgram(): Command {
   registerAnalyzeCommands(program)
   registerPreviewCommand(program)
   registerPickCommand(program)
+  registerRoadnetCommand(program)
   registerMcpCommand(program)
   program.command('handoff <operation>')
     .description('Create a local-file workbench recipe link (buffer, centroid or bbox); no data are embedded')

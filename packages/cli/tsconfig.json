@@ -9,6 +9,7 @@
     { "path": "../core" },
     { "path": "../mcp" },
     { "path": "../picker" },
+    { "path": "../roadnet" },
     { "path": "../webmcp-bridge" }
   ],
   "include": ["src/**/*.ts"]

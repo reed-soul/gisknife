@@ -90,6 +90,10 @@ gisknife fetch boundary "深圳南山区" --level street -o ./nanshan_streets.ge
 # Extract Palo Alto OSM data or Silicon Valley Overture roads
 gisknife fetch osm --bbox "-122.18,37.41,-122.14,37.44" --layers roads,buildings -o ./palo_alto.geojson
 gisknife fetch osm --place "Silicon Valley" --layers roads --source overture -o ./sv_roads.parquet
+
+# Fetch or build a drivable road network with OSM signals & turn restrictions -> SUMO plain XML / GeoJSON
+gisknife roadnet fetch --bbox "-122.18,37.41,-122.14,37.44" -o ./palo.roadnet.json --plain-dir ./palo_sumo
+gisknife roadnet validate ./palo.roadnet.json
 ```
 
 ---
@@ -104,6 +108,7 @@ gisknife fetch osm --place "Silicon Valley" --layers roads --source overture -o 
 | Package | Purpose |
 |---|---|
 | [`@gisknife/core`](./packages/core) | Pure TS GIS core (CRS, sniffer, fetchers, format fast-path, QA, Turf ops, HTML preview) |
+| [`@gisknife/roadnet`](./packages/roadnet) | Road network domain engine (`roadnet-core` WASM), OSM signal/turn-restriction parser, SUMO plain XML & GIS pipeline |
 | [`@gisknife/picker`](./packages/picker) | Ephemeral localhost HITL BBox/Polygon/File picker |
 | [`@gisknife/mcp-apps`](./packages/mcp-apps) | MCP Apps (`io.modelcontextprotocol/ui`) `ui://` interactive widgets |
 | [`@gisknife/a2ui-catalog`](./packages/a2ui-catalog) | A2UI 1.0 GIS Component Catalog + AG-UI event bridge + `@ui-sdk/core` contracts |

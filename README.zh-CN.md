@@ -90,6 +90,10 @@ gisknife fetch boundary "深圳南山区" --level street -o ./nanshan_streets.ge
 # 获取帕洛阿尔托的 OSM 路网与建筑，或硅谷的 Overture 路网
 gisknife fetch osm --bbox "-122.18,37.41,-122.14,37.44" --layers roads,buildings -o ./palo_alto.geojson
 gisknife fetch osm --place "Silicon Valley" --layers roads --source overture -o ./sv_roads.parquet
+
+# 抓取或构建带红绿灯（highway=traffic_signals）与禁转/强制转向关系的可仿真路网
+gisknife roadnet fetch --bbox "-122.18,37.41,-122.14,37.44" -o ./palo.roadnet.json --plain-dir ./palo_sumo
+gisknife roadnet validate ./palo.roadnet.json
 ```
 
 ---
@@ -100,6 +104,7 @@ gisknife fetch osm --place "Silicon Valley" --layers roads --source overture -o 
 - [`docs/architecture/PROTOCOLS.md`](./docs/architecture/PROTOCOLS.md) —— Skill / CLI / Ephemeral Picker / MCP Apps / A2UI 1.0 + AG-UI + `@ui-sdk/core` / WebMCP 分层规范
 - [`docs/architecture/DATA_SOURCES_AND_COMPLIANCE.md`](./docs/architecture/DATA_SOURCES_AND_COMPLIANCE.md) —— 多源路由规则、远程静态索引规范与测绘合规说明
 - [`docs/architecture/ROADMAP.md`](./docs/architecture/ROADMAP.md) —— 演进路线及与 `gis.taoliapp.com` 协同策略
+- [`@gisknife/roadnet`](./packages/roadnet) —— 可仿真交通路网域引擎（自托管 `roadnet-core` WASM、`highway=traffic_signals` 与 `type=restriction` 解析、SUMO plain XML / GeoJSON 无头流水线与浏览器加载入口）
 
 ---
 

@@ -44,6 +44,7 @@ Load ONLY the reference file needed for the current task:
 |---|---|---|
 | Coordinate string / CSV batch rewrite / EPSG search / `4547`↔`84` / GCJ-02 | `gisknife crs` | [references/crs.md](references/crs.md) |
 | Online boundaries (global, US, China city/street), OSM, or Overture (Beta) | `gisknife fetch` | [references/fetch.md](references/fetch.md) |
+| Drivable road networks, OSM signals & turn restrictions, SUMO plain XML | `gisknife roadnet` | [references/roadnet.md](references/roadnet.md) |
 | Format convert (SHP/GPKG/Parquet/KML/DXF) / inspect / topology QA & fix | `gisknife convert`, `inspect`, `qa` | [references/convert-qa.md](references/convert-qa.md) |
 | Buffer, clip, union, dissolve, Spatial SQL (DuckDB), raster metadata | `gisknife analyze`, `sql`, `inspect` | [references/analyze-sql.md](references/analyze-sql.md) |
 | Interactive map box pick, local file drop, MCP Apps, A2UI, WebMCP handoff | `gisknife pick`, `preview`, `mcp` | [references/hitl-ui.md](references/hitl-ui.md) |
@@ -72,6 +73,10 @@ gisknife pick -o ./area.geojson
 gisknife convert ./parcels.geojson -o ./parcels.gpkg
 gisknife qa ./parcels.geojson --fix -o ./parcels_clean.geojson
 gisknife preview ./parcels_clean.geojson -o ./parcels_preview.html
+
+# 6. Build & validate a drivable SUMO/GIS road network with traffic signals & turn restrictions
+gisknife roadnet fetch --bbox "-122.18,37.41,-122.14,37.44" -o ./palo.roadnet.json --plain-dir ./palo_sumo
+gisknife roadnet validate ./palo.roadnet.json
 ```
 
 ## Runtime Invocation Fallback

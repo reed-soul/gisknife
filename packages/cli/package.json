@@ -29,6 +29,7 @@
     "@gisknife/core": "workspace:*",
     "@gisknife/mcp": "workspace:*",
     "@gisknife/picker": "workspace:*",
+    "@gisknife/roadnet": "workspace:*",
     "@gisknife/webmcp-bridge": "workspace:*",
     "@types/geojson": "^7946.0.16",
     "commander": "^15.1.0"

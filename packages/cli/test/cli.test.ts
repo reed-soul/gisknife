@@ -29,6 +29,7 @@ describe('gisknife CLI', () => {
       'sql',
       'preview',
       'pick',
+      'roadnet',
       'mcp',
       'handoff',
     ])

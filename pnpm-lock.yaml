@@ -209,6 +209,9 @@ importers:
       '@gisknife/picker':
         specifier: workspace:*
         version: link:../picker
+      '@gisknife/roadnet':
+        specifier: workspace:*
+        version: link:../roadnet
       '@gisknife/webmcp-bridge':
         specifier: workspace:*
         version: link:../webmcp-bridge
@@ -289,6 +292,9 @@ importers:
       '@gisknife/picker':
         specifier: workspace:*
         version: link:../picker
+      '@gisknife/roadnet':
+        specifier: workspace:*
+        version: link:../roadnet
       '@modelcontextprotocol/sdk':
         specifier: ^1.32.2
         version: 1.32.2(zod@4.6.7)
@@ -320,6 +326,19 @@ importers:
         version: 5.9.3
 
   packages/picker:
+    dependencies:
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/roadnet:
     dependencies:
       '@types/geojson':
         specifier: ^7946.0.16

@@ -8,7 +8,8 @@
   "references": [
     { "path": "../core" },
     { "path": "../mcp-apps" },
-    { "path": "../picker" }
+    { "path": "../picker" },
+    { "path": "../roadnet" }
   ],
   "include": ["src/**/*.ts"]
 }

@@ -27,6 +27,7 @@
     "@gisknife/core": "workspace:*",
     "@gisknife/mcp-apps": "workspace:*",
     "@gisknife/picker": "workspace:*",
+    "@gisknife/roadnet": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/geojson": "^7946.0.16",
     "zod": "^4.6.7"

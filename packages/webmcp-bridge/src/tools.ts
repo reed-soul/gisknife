@@ -7,7 +7,7 @@ export interface WebMcpToolAnnotations {
 export interface WebMcpToolDescriptor {
   name: string
   description: string
-  category: 'crs' | 'format' | 'spatial' | 'generator' | 'sql' | 'tiles' | 'hitl' | 'fetch'
+  category: 'crs' | 'format' | 'spatial' | 'generator' | 'sql' | 'tiles' | 'hitl' | 'fetch' | 'roadnet'
   inputSchema: {
     type: 'object'
     properties: Record<string, unknown>
@@ -47,4 +47,10 @@ export const WEBMCP_TOOL_CATALOG: WebMcpToolDescriptor[] = [
   {"name":"export_current_session","category":"format","description":"Ask the user to download the active workflow result as GeoJSON.","inputSchema":{"type":"object","properties":{"format":{"type":"string","enum":["geojson"]}}}},
   {"name":"fetch_osm","category":"fetch","description":"Load roads or buildings for a small WGS84 bounding box into the workflow.","inputSchema":{"type":"object","properties":{"bbox":{"type":"array","items":{"type":"number"}},"layers":{"type":"array","items":{"type":"string","enum":["roads","buildings"]}}},"required":["bbox","layers"]}},
   {"name":"fetch_boundary","category":"fetch","description":"Find an administrative polygon using Nominatim.","inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]}},
+  {"name":"roadnet_fetch_osm","category":"roadnet","description":"Beta: Fetch drivable OSM roads, traffic signals, and turn restrictions for a small WGS84 bbox into a SUMO/OpenDRIVE road network.","inputSchema":{"type":"object","properties":{"bbox":{"type":"array","items":{"type":"number"}},"includeRestrictions":{"type":"boolean"},"synthesizeSignals":{"type":"boolean"}},"required":["bbox"]}},
+  {"name":"roadnet_filter_links","category":"roadnet","description":"Query drivable road network links by road class, lanes, speed, or attribute filter.","inputSchema":{"type":"object","properties":{"filter":{"type":"object"}}}},
+  {"name":"roadnet_batch_edit","category":"roadnet","description":"Apply batch attribute or lane edits to selected roadnet links or lanes.","inputSchema":{"type":"object","properties":{"filter":{"type":"object"},"patch":{"type":"object"}},"required":["patch"]}},
+  {"name":"roadnet_fillet","category":"roadnet","description":"Fillet sharp approach angles on selected or all roadnet links.","inputSchema":{"type":"object","properties":{"linkIds":{"type":"array","items":{"type":"string"}},"radiusM":{"type":"number"}}}},
+  {"name":"roadnet_validate","category":"roadnet","description":"Validate roadnet topology, connections, and traffic signal phases (S01-S06).","inputSchema":{"type":"object","properties":{"target":{"type":"string","enum":["sumo","opendrive"]},"version":{"type":"string"}}}},
+  {"name":"roadnet_export","category":"roadnet","description":"Export the active road network to SUMO plain XML (.nod/.edg/.con/.tll) or GeoJSON.","inputSchema":{"type":"object","properties":{"format":{"type":"string","enum":["sumo-plain","geojson","project"]},"layer":{"type":"string","enum":["links","nodes","junctions","all"]}},"required":["format"]}},
 ]

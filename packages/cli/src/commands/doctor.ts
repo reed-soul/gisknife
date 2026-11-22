@@ -1,4 +1,5 @@
 import { ensureCatalogLoaded, resolveCacheDir } from '@gisknife/core'
+import { probeRoadnetWasmNode } from '@gisknife/roadnet/node'
 import type { Command } from 'commander'
 import { probePythonEngine } from '../engineBridge.js'
 
@@ -18,6 +19,7 @@ export function registerDoctorCommand(program: Command): void {
           epsgCount: catalog.size,
         },
         pythonEngine: py,
+        roadnetWasm: probeRoadnetWasmNode(),
         cacheDir: resolveCacheDir(),
         env: {
           GISKNIFE_INDEX_URL: Boolean(process.env.GISKNIFE_INDEX_URL),

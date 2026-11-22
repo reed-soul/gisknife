@@ -41,7 +41,7 @@ describe('@gisknife/mcp', () => {
     const toolsList = await client.listTools()
     const toolNames = toolsList.tools.map((t) => t.name)
     expect(toolNames).toContain('gis_crs_convert')
-    for (const name of ['gis_fetch_boundary', 'gis_fetch_osm']) {
+    for (const name of ['gis_fetch_boundary', 'gis_fetch_osm', 'gis_roadnet_fetch']) {
       expect(toolsList.tools.find(tool => tool.name === name)?.description).toMatch(/^Beta:/)
     }
     expect(toolNames).toContain('gis_pick_area')

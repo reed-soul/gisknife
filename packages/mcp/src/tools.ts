@@ -34,6 +34,7 @@ import {
 import { startEphemeralPicker } from '@gisknife/picker'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
+import { registerRoadnetMcpTools } from './roadnetTools.js'
 
 export type HeavyEngineRunner = (
   op: string,
@@ -430,4 +431,6 @@ export function registerGisMcpCapabilities(
       }), structuredContent: summary, _meta: { geojson: fc } }
     },
   )
+
+  registerRoadnetMcpTools(server, options.heavyRunner)
 }

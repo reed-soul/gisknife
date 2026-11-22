@@ -7,8 +7,8 @@ import {
 } from '../src/index.js'
 
 describe('@gisknife/webmcp-bridge', () => {
-  it('exposes 23 WebMCP tools and supports AbortController registration', async () => {
-    expect(new Set(WEBMCP_TOOL_CATALOG.map(tool => tool.name)).size).toBe(23)
+  it('exposes 29 WebMCP tools and supports AbortController registration', async () => {
+    expect(new Set(WEBMCP_TOOL_CATALOG.map(tool => tool.name)).size).toBe(29)
     expect(WEBMCP_TOOL_CATALOG[0].inputSchema.required).toEqual(['lon', 'lat', 'from_crs', 'to_crs'])
     expect(WEBMCP_TOOL_CATALOG.some((t) => t.name === 'convert_coordinates')).toBe(true)
     expect(WEBMCP_TOOL_CATALOG.some((t) => t.name === 'pick_map_bbox')).toBe(true)
